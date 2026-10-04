@@ -47,6 +47,7 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
 - **Motivo**: `Faker` puede cambiar su salida entre versiones y agrega una dependencia; para ~60 socios alcanzan listas curadas de nombres y apellidos. CE-007 exige contenido idéntico en dos corridas: se verifica con un hash del contenido de las tablas.
 - **Volumen** (cumple RF-002 con más de 15 filas en cinco tablas): 5 planes, 8 instructores, ~60 socios, ~24 clases semanales, ~3.000 asistencias, ~350 pagos, ~32 equipos.
 - **Escenarios plantados** (para que las respuestas de la batería sean no triviales y sin empates): un instructor con estrictamente más asistencias presentes en los últimos 30 días; al menos 5 socios con faltas (`presente = false`) en esa ventana; 4 a 6 pagos `vencido`; 3 a 4 equipos `en_mantenimiento`; al menos un equipo de tipo cinta con último mantenimiento anterior a la frecuencia del manual.
+- **Implementado en T019 (2026-10-04)**: 3.474 asistencias y 325 pagos. Valores que debe respetar el reglamento de T025: los socios `congelado` lo están desde el 2026-09-01 y **no pagan la cuota del mes congelado**; las cuotas vencidas son todas de agosto (vencen el 10/9 y todavía no cumplen los 30 días que suspenden el acceso); las faltas del último mes son de 6 socios activos.
 - **Alternativas**: archivo SQL de semilla escrito a mano (reproducible, pero poco coherente y laborioso de mantener).
 
 ## R8. PDFs sintéticos
