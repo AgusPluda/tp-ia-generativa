@@ -39,7 +39,7 @@ python scripts/ingest_pdfs.py
 
 **Resultado esperado**:
 - Más de 15 filas en `socios`, `clases`, `asistencias`, `pagos` y `equipamiento` (RF-002).
-- Tres PDFs en `data/pdfs/`; `rag.chunks` con unas 45 filas de 1536 dimensiones.
+- Tres PDFs en `data/pdfs/`; `rag.chunks` con 31 filas de 1536 dimensiones.
 - Repetir `generate_data.py` (tras `docker compose down -v && docker compose up -d`) produce contenido idéntico (CE-007; lo cubre el test de determinismo).
 
 ## 4. Tests
