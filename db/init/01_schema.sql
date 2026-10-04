@@ -105,9 +105,10 @@ CREATE TABLE rag.chunks (
     pagina       INT,
     orden        INT  NOT NULL,
     contenido    TEXT NOT NULL,
-    -- IMPORTANTE: la dimensión depende del modelo de embeddings elegido
-    -- (ej.: 1536 para text-embedding-3-small, 768 o 384 para modelos locales).
-    -- Si se cambia el modelo, hay que ajustar este valor y volver a ingestar.
+    -- Modelo de embeddings: gemini-embedding-001. Devuelve 3072 dimensiones por defecto,
+    -- pero el índice HNSW de pgvector admite hasta 2000: hay que pedir
+    -- output_dimensionality=1536 al generar los embeddings (en la ingesta y en las consultas).
+    -- Si se cambia el modelo o la dimensión, hay que ajustar este valor y volver a ingestar.
     embedding    vector(1536) NOT NULL
 );
 

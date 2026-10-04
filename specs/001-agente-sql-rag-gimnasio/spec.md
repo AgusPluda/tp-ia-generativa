@@ -16,6 +16,13 @@
 - P: ¿El agente debe recordar el contexto entre preguntas? → R: No. Cada pregunta es independiente; no se requiere capacidad conversacional.
 - Decisión de alcance: el sistema se ejecuta de forma local (Docker); el despliegue en la nube queda fuera de alcance.
 
+### Sesión 2026-10-04
+
+- P: ¿Qué significa que un socio "no asistió"? → R: Que tiene un registro de asistencia con `presente = false`. Consecuencia: los datos sintéticos deben registrar explícitamente las faltas.
+- P: ¿Qué significa "pago vencido"? → R: Únicamente los pagos con `estado = 'vencido'`. Un pago `pendiente` no se considera vencido, aunque su mes ya haya pasado.
+- P: ¿Qué representa la fecha 2026-09-30? → R: Es la fecha de referencia ("hoy" del sistema); los registros históricos terminan en esa fecha y abarcan los meses anteriores.
+- P: ¿De dónde salen los datos de la base y los PDFs? → R: Todos son sintéticos y se generan en una etapa inicial de "setup" del plan y la implementación, antes de construir el agente.
+
 ## Escenarios de usuario y pruebas *(obligatorio)*
 
 ### Historia 1 - Consultar datos estructurados del gimnasio (Prioridad: P1)
@@ -159,7 +166,7 @@ Quien usa o evalúa el agente puede ver de dónde salió cada respuesta (consult
 - Los datos de la base y los PDFs son ficticios; no se manejan datos personales reales.
 - Los precios y valores variables viven solo en la base; los PDFs contienen reglas y procedimientos.
 - El sistema se usa de forma local por una persona a la vez (sin requisitos de concurrencia).
-- La fecha de referencia propuesta es **2026-09-30**. Es un único valor de configuración y puede ajustarse antes de generar los datos; lo importante es que no cambie una vez definida la batería de evaluación.
+- La fecha de referencia es **2026-09-30** y funciona como el "hoy" del sistema: los datos sintéticos van hacia atrás desde esa fecha. Es un único valor de configuración; lo importante es que no cambie una vez definida la batería de evaluación.
 - Los datos abarcan varios meses previos a la fecha de referencia, para que las consultas sobre el último mes y sobre períodos anteriores sean significativas. El período exacto se define en el plan.
 
 ## Fuera de alcance
