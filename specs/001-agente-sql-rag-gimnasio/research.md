@@ -55,7 +55,7 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
 - **Contenido mínimo**:
   - *Reglamento interno*: congelamiento de cuota (duración máxima, aviso previo, efecto sobre la cuota), mora (cuándo un pago pasa a vencido, suspensión del acceso), baja (cómo y con qué anticipación) y cancelación de clases (anticipación mínima, faltas sin aviso).
   - *Guía de rutinas y nutrición*: rutina para principiantes, intermedios y avanzados (frecuencia semanal, ejercicios), calentamiento y descanso, recomendaciones de alimentación antes y después de entrenar.
-  - *Manual de uso y mantenimiento del equipamiento*: uso correcto por tipo de equipo, frecuencia de mantenimiento por tipo (cintas, bicicletas, máquinas de pesas, pesas libres), qué hacer ante una falla.
+  - *Manual de uso y mantenimiento del equipamiento*: uso correcto por tipo de equipo, frecuencia de mantenimiento por tipo (los de `TIPOS_EQUIPO` en `catalog.py`: cinta de correr, bicicleta fija, elíptico y máquina de pesas), qué hacer ante una falla.
 - **Coherencia con la base**: los nombres de tipo de equipo de la tabla `equipamiento.tipo` son los mismos que aparecen como secciones del manual. Por el principio III, los PDFs **no** incluyen precios, cupos ni cantidades que vivan en la base.
 - **Motivo**: generarlos por script hace reproducible el proyecto y permite que la batería derive los valores esperados del mismo `catalog.py`.
 - **Alternativas**: redactarlos en un procesador de texto (sin garantía de coherencia con la base ni de reproducibilidad).
