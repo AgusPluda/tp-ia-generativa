@@ -124,9 +124,9 @@ description: "Tareas de la Etapa 0 (setup) del agente SQL + RAG para gimnasio"
 
 **Propósito**: dejar documentado y validado el punto de partida para la Etapa 1.
 
-- [ ] T032 Escribir `README.md` mínimo con: requisitos (Docker, Python 3.12 a 3.14, clave de Gemini), pasos 1 a 3 del [quickstart.md](quickstart.md) (configuración, base, setup de datos y documentos), cómo reiniciar desde cero (`docker compose down -v && docker compose up -d`) y la advertencia de que `AGENTE_RO_PASSWORD` y `GEMINI_API_KEY` son obligatorias. El resto del README (app, evaluación) se completa en la Etapa 5.
-- [ ] T033 Validación final: desde cero (`docker compose down -v`, base nueva, `.env` listo) ejecutar en orden `docker compose up -d`, `python scripts/generate_data.py`, `python scripts/generate_pdfs.py`, `python scripts/ingest_pdfs.py` y `pytest tests/unit tests/integration`; todo debe pasar sin pasos manuales extra. Registrar en el README cualquier tropiezo.
-- [ ] T034 Dejar los artefactos listos para commit: revisar con `git status` que no se versiona `.env` ni `logs/`; que sí están `data/pdfs/*.pdf`, `requirements.txt`, `pyproject.toml` y el código; y marcar acá las tareas completadas.
+- [x] T032 Escribir `README.md` mínimo con: requisitos (Docker, Python 3.12 a 3.14, clave de Gemini), pasos 1 a 3 del [quickstart.md](quickstart.md) (configuración, base, setup de datos y documentos), cómo reiniciar desde cero (`docker compose down -v && docker compose up -d`) y la advertencia de que `AGENTE_RO_PASSWORD` y `GEMINI_API_KEY` son obligatorias. El resto del README (app, evaluación) se completa en la Etapa 5.
+- [x] T033 Validación final: desde cero (`docker compose down -v`, base nueva, `.env` listo) ejecutar en orden `docker compose up -d`, `python scripts/generate_data.py`, `python scripts/generate_pdfs.py`, `python scripts/ingest_pdfs.py` y `pytest tests/unit tests/integration`; todo debe pasar sin pasos manuales extra. Registrar en el README cualquier tropiezo.
+- [x] T034 Dejar los artefactos listos para commit: revisar con `git status` que no se versiona `.env` ni `logs/`; que sí están `data/pdfs/*.pdf`, `requirements.txt`, `pyproject.toml` y el código; y marcar acá las tareas completadas.
 
 ---
 
