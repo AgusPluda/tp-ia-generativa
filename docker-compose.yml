@@ -1,0 +1,31 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: gym_db
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Los scripts de este directorio se ejecutan SOLO la primera vez que se crea el volumen.
+      # Para reiniciar la base desde cero: docker compose down -v && docker compose up -d
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Observabilidad opcional (alternativa open source a LangSmith).
+  # Se levanta con: docker compose --profile observability up -d
+  phoenix:
+    image: arizephoenix/phoenix:latest # fijar una versión concreta antes de entregar
+    container_name: gym_phoenix
+    profiles: ["observability"]
+    ports:
+      - "6006:6006" # UI
+      - "4317:4317" # OTLP gRPC
+
+volumes:
+  pgdata:
