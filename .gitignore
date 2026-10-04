@@ -1,0 +1,40 @@
+# Secretos y credenciales (usar .env.example como plantilla)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
+
+# Configuración local de Claude Code (puede contener rutas/permisos personales)
+.claude/settings.local.json
+
+# Datos locales de la base y volúmenes
+pgdata/
+*.sql.gz
+*.dump
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+
+# Logs y temporales
+*.log
+.DS_Store
+Thumbs.db
+
+# Editores
+.idea/
+.vscode/
