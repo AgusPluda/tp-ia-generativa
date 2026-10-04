@@ -124,7 +124,9 @@ src/gym_agent/
 ├── synthetic/
 │   ├── catalog.py            # hechos compartidos entre base y PDFs (frecuencias, plazos)
 │   ├── data.py               # generación determinista de filas
-│   └── pdf_content.py        # texto de los 3 documentos
+│   ├── loader.py             # carga a la base y hash por tabla
+│   ├── pdf_content.py        # texto de los 3 documentos
+│   └── pdf_render.py         # renderiza los PDFs con reportlab
 ├── rag/
 │   ├── chunking.py
 │   └── ingest.py

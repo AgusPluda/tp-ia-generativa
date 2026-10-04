@@ -141,8 +141,8 @@ Como el esquema no los impone con restricciones, el generador los garantiza por 
 
 1. Todas las fechas son menores o iguales a `REFERENCE_DATE`; el historial abarca del 2026-04-01 al 2026-09-30.
 2. `asistencias.fecha` cae en el `dia_semana` de la clase correspondiente, y es posterior o igual a `socios.fecha_alta`.
-3. Un socio en estado `baja` no tiene asistencias posteriores a su salida; uno `congelado` no tiene asistencias `presente = true` en el último mes.
-4. Un pago `pagado` tiene `fecha_pago` no nulo; uno `pendiente` o `vencido` lo tiene nulo.
+3. Un socio en estado `baja` no tiene asistencias posteriores a su salida; uno `congelado` no tiene **ninguna** fila de asistencia en el último mes (ni presente ni falta); las faltas `presente = false` del último mes pertenecen solo a socios `activo`.
+4. Un pago `pagado` tiene `fecha_pago` no nulo; uno `pendiente` o `vencido` lo tiene nulo. La cuota de un mes se paga durante ese mes; si al terminar no está paga, hay `mora_dias_para_vencido` (10) días de gracia y después pasa a vencida. Por lo tanto, `pendiente` solo existe para `mes_correspondiente = 2026-09-01` (el mes de `REFERENCE_DATE`), y `vencido` solo si el último día del mes más 10 días es anterior a `REFERENCE_DATE` (meses hasta agosto).
 5. A lo sumo un pago por (`id_socio`, `mes_correspondiente`); `monto` coincide con el `precio_mensual` del plan.
 6. `equipamiento.tipo` pertenece al conjunto de tipos descritos en el manual de equipamiento; `ultimo_mantenimiento` ≥ `fecha_adquisicion`.
 7. Las faltas (`presente = false`) se registran explícitamente (definición de "no asistió").

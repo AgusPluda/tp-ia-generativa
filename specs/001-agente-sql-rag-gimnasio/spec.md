@@ -153,7 +153,7 @@ Quien usa o evalúa el agente puede ver de dónde salió cada respuesta (consult
 
 ### Resultados medibles
 
-- **CE-001**: Existe una batería de evaluación de al menos 20 preguntas (solo SQL, solo RAG, híbridas y casos borde) con respuesta esperada definida.
+- **CE-001**: Existe una batería de evaluación de al menos 20 preguntas (solo SQL, solo RAG, híbridas y casos borde) con respuesta esperada definida. La batería forma parte de esta especificación y se define en `contracts/eval-battery.md`, antes de implementar el agente (constitución, principio V).
 - **CE-002**: Al menos el 85 % de la batería se responde correctamente.
 - **CE-003**: El 100 % de los intentos de modificar datos son rechazados y la base queda intacta.
 - **CE-004**: Todas las preguntas híbridas de la batería usan ambas fuentes.
