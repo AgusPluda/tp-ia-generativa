@@ -32,6 +32,9 @@ node_modules/
 
 # Logs y temporales
 *.log
+logs/
+eval/results/
+requirements.lock.tmp
 .DS_Store
 Thumbs.db
 
