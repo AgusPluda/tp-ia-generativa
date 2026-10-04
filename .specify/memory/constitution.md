@@ -38,7 +38,7 @@ El agente nunca debe poder modificar la base.
 - Base de datos: PostgreSQL con la extensión pgvector, en Docker.
 - Orquestación del agente: framework agéntico (LangGraph).
 - Interfaz: Streamlit.
-- Observabilidad: LangSmith o Phoenix (decisión diferida).
+- Observabilidad: Phoenix (open source, corre en Docker). Decidido el 2026-10-04; reemplaza la decisión diferida entre LangSmith y Phoenix.
 - Datos: exclusivamente sintéticos, sin datos personales reales.
 
 ## Flujo de trabajo y gobernanza
@@ -46,4 +46,8 @@ El agente nunca debe poder modificar la base.
 - Los artefactos generados (constitución, specs, plan, tasks) se versionan en el repositorio, porque forman parte de la entrega.
 - Cambios a esta constitución se acuerdan entre los dos integrantes del grupo y se registran con fecha y motivo.
 
-**Versión**: 1.0.0 | **Ratificada**: 2026-10-03
+**Versión**: 1.1.0 | **Ratificada**: 2026-10-03 | **Última modificación**: 2026-10-04
+
+### Historial de cambios
+- **1.1.0 (2026-10-04)**: se elige Phoenix como herramienta de observabilidad. Motivo: es open source, corre localmente en Docker sin cuenta externa y no envía datos a terceros, en línea con el principio I (reproducibilidad).
+- **1.0.0 (2026-10-03)**: versión inicial.
