@@ -207,7 +207,7 @@ Después de la Fase 2:
 
 > Escribirlos primero y verificar que fallan (ModuleNotFoundError) antes de implementar.
 
-- [ ] T037 [P] [US1] Crear `tests/unit/test_sql_validator.py` (sin base ni LLM) para `gym_agent.tools.sql_validator.validar(sql) -> str` y `SQLNoPermitido(codigo, detalle)`. Con `pytest.mark.parametrize`:
+- [x] T037 [P] [US1] Crear `tests/unit/test_sql_validator.py` (sin base ni LLM) para `gym_agent.tools.sql_validator.validar(sql) -> str` y `SQLNoPermitido(codigo, detalle)`. Con `pytest.mark.parametrize`:
   - **Se aceptan** (y se devuelve la consulta sin `;` final): `SELECT` simple; `WITH ... SELECT`; joins, agregaciones, subconsultas y funciones de ventana; `fecha BETWEEN DATE '2026-09-01' AND DATE '2026-09-30'`; `ILIKE`; una consulta con un comentario `-- ...` o `/* ... */` que no esconde nada; un `SELECT` con `;` final; un literal como `'today%'` dentro de un `ILIKE` (no es igual a `'today'`).
   - **`NO_ES_SELECT`**: `INSERT`, `UPDATE`, `DELETE`, `DROP TABLE socios`, `ALTER`, `CREATE`, `TRUNCATE`, `GRANT`, `COPY`, `CALL`, `DO`, `SET`; `SELECT 1; DELETE FROM pagos` y `SELECT 1; -- x` seguido de `DELETE` en otra línea (varios statements con alguno que no es `SELECT`); `SELECT * INTO nueva FROM socios`; `SELECT * FROM socios FOR UPDATE`; `WITH x AS (DELETE FROM pagos RETURNING *) SELECT * FROM x` (Postgres admite DML dentro de un CTE).
   - **`FUERA_DE_ESQUEMA`**: `SELECT * FROM rag.chunks`; `rag.documentos` dentro de un `JOIN`, de una subconsulta y de un CTE; `"rag"."chunks"` entrecomillado; `RAG.chunks` en mayúsculas; `pg_catalog.pg_tables`; `information_schema.columns`.
@@ -233,7 +233,7 @@ Después de la Fase 2:
 
 ### Implementación de la fase
 
-- [ ] T040 [US1] Crear `src/gym_agent/tools/sql_validator.py`: `class SQLNoPermitido(Exception)` con `codigo` (`"NO_ES_SELECT"` | `"FUERA_DE_ESQUEMA"` | `"INVALIDA"`) y `detalle`, y `validar(sql: str) -> str` que implementa los pasos de validación del contrato con `sqlglot` 30.21.0, dialecto `postgres`:
+- [x] T040 [US1] Crear `src/gym_agent/tools/sql_validator.py`: `class SQLNoPermitido(Exception)` con `codigo` (`"NO_ES_SELECT"` | `"FUERA_DE_ESQUEMA"` | `"INVALIDA"`) y `detalle`, y `validar(sql: str) -> str` que implementa los pasos de validación del contrato con `sqlglot` 30.21.0, dialecto `postgres`:
   - Sin texto, sin parseo o más de un statement → `INVALIDA`; **excepción**: si entre varios statements hay alguno que no es `SELECT`, el código es `NO_ES_SELECT`.
   - La raíz debe ser `SELECT` (se admite `WITH ... SELECT`); cualquier nodo de escritura o DDL **en cualquier parte del árbol** (incluido un `DELETE` dentro de un CTE), `SELECT ... INTO` o `FOR UPDATE`/`FOR SHARE` → `NO_ES_SELECT`.
   - Toda tabla con esquema o catálogo `rag`, `pg_catalog` o `information_schema` (sin distinguir mayúsculas ni comillas) → `FUERA_DE_ESQUEMA`.

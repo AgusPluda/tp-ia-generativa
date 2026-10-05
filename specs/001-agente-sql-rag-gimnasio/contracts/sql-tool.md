@@ -32,8 +32,9 @@ Una consulta válida que devuelve 0 filas es `ok = true` con `filas = []`; el no
    - no se puede parsear como Postgres;
    - hay más de un statement;
    - la raíz no es `SELECT` (se admite `WITH ... SELECT`); cualquier `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `TRUNCATE`, `GRANT`, `COPY`, `CALL`, `DO`, `SET`, `SELECT ... INTO`, o `FOR UPDATE`;
-   - referencia el esquema `rag`, `pg_catalog` o `information_schema`;
-   - usa funciones de reloj (`now`, `current_date`, `current_timestamp`, `current_time`, `localtimestamp`, `clock_timestamp`, `statement_timestamp`, `transaction_timestamp`) o cualquier `pg_*` (`pg_sleep`, `pg_read_file`, etc.), o `set_config`, `lo_*`, `dblink`.
+   - referencia el esquema `rag`, `pg_catalog` o `information_schema`, o una tabla `pg_*` sin calificar (`pg_catalog` está en el `search_path`);
+   - usa funciones de reloj (`now`, `current_date`, `current_timestamp`, `current_time`, `localtime`, `localtimestamp`, `clock_timestamp`, `statement_timestamp`, `transaction_timestamp`, `timeofday`), `age` con un solo argumento, o los literales `'now'`, `'today'`, `'tomorrow'`, `'yesterday'` (todos usan la fecha real);
+   - usa cualquier `pg_*` (`pg_sleep`, `pg_read_file`, etc.), `lo_*`, `dblink*`, `set_config`, `current_setting`, `nextval`, `setval` o las `*_to_xml*` (`query_to_xml` ejecuta SQL escrito dentro de un string y saltearía las demás reglas).
 3. **Ejecutar** con `agente_ro` dentro de una transacción de solo lectura, con `statement_timeout` de 5 s (ya definido en el rol; se reafirma por sesión). Se leen como máximo 51 filas.
 4. **Recuperar**: si la validación o la ejecución fallan, se reintenta hasta 2 veces más, pasando al LLM el mensaje de error **saneado** (sin nombres de host, usuario ni rutas). Si siguen los fallos, `ok = false`.
 
