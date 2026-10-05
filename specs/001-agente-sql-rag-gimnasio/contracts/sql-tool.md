@@ -36,11 +36,15 @@ Una consulta válida que devuelve 0 filas es `ok = true` con `filas = []`; el no
    - usa funciones de reloj (`now`, `current_date`, `current_timestamp`, `current_time`, `localtime`, `localtimestamp`, `clock_timestamp`, `statement_timestamp`, `transaction_timestamp`, `timeofday`), `age` con un solo argumento, o los literales `'now'`, `'today'`, `'tomorrow'`, `'yesterday'` (todos usan la fecha real);
    - usa cualquier `pg_*` (`pg_sleep`, `pg_read_file`, etc.), `lo_*`, `dblink*`, `set_config`, `current_setting`, `nextval`, `setval` o las `*_to_xml*` (`query_to_xml` ejecuta SQL escrito dentro de un string y saltearía las demás reglas).
 3. **Ejecutar** con `agente_ro` dentro de una transacción de solo lectura, con `statement_timeout` de 5 s (ya definido en el rol; se reafirma por sesión). Se leen como máximo 51 filas.
-4. **Recuperar**: si la validación o la ejecución fallan, se reintenta hasta 2 veces más, pasando al LLM el mensaje de error **saneado** (sin nombres de host, usuario ni rutas). Si siguen los fallos, `ok = false`.
+4. **Recuperar**: si la validación o la ejecución fallan con `INVALIDA`, `TIMEOUT` o `ERROR_EJECUCION`, se reintenta hasta 2 veces más (`MAX_INTENTOS_SQL` = 3), pasando al LLM la consulta anterior y el mensaje de error **saneado** (sin contraseñas, usuarios, hosts, puertos ni rutas). `NO_ES_SELECT` y `FUERA_DE_ESQUEMA` **no se reintentan**: otra oportunidad no aporta nada. Si siguen los fallos, `ok = false`.
+
+Los valores de `filas` se serializan a JSON: `numeric` entero → `int`, con decimales → `float`; fechas y horas → texto ISO.
 
 ## Errores (`ErrorSQL`)
 
-| `codigo` | Cuándo | Mensaje al usuario (el nodo de síntesis lo redacta, sin detalles internos) |
+`ErrorSQL` tiene `codigo`, `mensaje` (texto para el usuario, de la tabla; siempre sale de ahí) y `detalle` (texto técnico).
+
+| `codigo` | Cuándo | `mensaje` (sin detalles internos) |
 |----------|--------|--------|
 | `NO_ES_SELECT` | La consulta no es de solo lectura | "Solo puedo consultar información; no puedo modificar datos." |
 | `FUERA_DE_ESQUEMA` | Menciona `rag`, catálogo del sistema | "No puedo consultar esa información." |

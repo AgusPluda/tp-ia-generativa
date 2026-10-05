@@ -41,7 +41,7 @@ Módulo: `src/gym_agent/tools/rag_tool.py`. La ingesta vive en `src/gym_agent/ra
    ```
 
    La consulta es fija y parametrizada: el LLM no escribe SQL en esta tool.
-3. Descarta los fragmentos con `similitud` menor al umbral (inicial 0,6, `UMBRAL_SIMILITUD`; se calibra con la batería, ver [research.md](../research.md) R9).
+3. Descarta los fragmentos con `similitud` menor al umbral (inicial 0,6, `UMBRAL_SIMILITUD`; se calibra con la batería, ver [research.md](../research.md) R9). El umbral solo filtra ruido: no decide si los documentos responden la pregunta.
 4. Si ningún fragmento supera el umbral devuelve `fragmentos = []`; el nodo de síntesis responde que los documentos no contienen esa información (RF-010) en lugar de inventar.
 
 ## Errores (`ErrorRAG`)

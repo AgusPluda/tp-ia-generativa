@@ -47,6 +47,7 @@ python scripts/ingest_pdfs.py
 ```bash
 pytest tests/unit
 pytest tests/integration   # requiere la base levantada
+pytest -m llm              # llama a Gemini: requiere GEMINI_API_KEY y la ingesta hecha
 ```
 
 **Resultado esperado**: todo en verde. En particular, el validador rechaza las sentencias hostiles y `agente_ro` no puede escribir aunque se omita el validador (CE-003).

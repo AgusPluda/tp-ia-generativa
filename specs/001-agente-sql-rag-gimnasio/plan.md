@@ -132,6 +132,7 @@ src/gym_agent/
 │   └── ingest.py
 ├── tools/
 │   ├── sql_validator.py
+│   ├── sql_prompt.py
 │   ├── sql_tool.py
 │   └── rag_tool.py
 └── graph/
@@ -163,7 +164,7 @@ README.md
 2. **Defensa en profundidad para escrituras**: aunque el router clasifique mal un pedido como "borrar pagos", la SQL tool solo acepta un `SELECT` y la base rechaza escrituras por el rol y por la transacción de solo lectura. Hay tres capas independientes.
 3. **Fecha de referencia**: `REFERENCE_DATE = 2026-09-30` definida una sola vez en `config.py`. El generador de datos, el prompt del agente ("hoy es …") y el runner la importan. La SQL tool rechaza `CURRENT_DATE`, `now()` y similares para que ninguna consulta dependa del reloj real. "Último mes" = `fecha BETWEEN REFERENCE_DATE - 29 AND REFERENCE_DATE`.
 4. **Datos**: 6 meses de historia, del 2026-04-01 al 2026-09-30. Los escenarios que usa la batería se **plantan** de forma deliberada (socios con faltas en el último mes, pagos vencidos, equipos en mantenimiento, un único instructor con más asistencias) y se verifican con tests de invariantes.
-5. **RAG**: chunks de ~800 caracteres con solape de 100, respetando párrafos y manteniendo la página de origen; embeddings de 1536 dimensiones (coinciden con `vector(1536)`); `k = 4` y umbral de similitud inicial 0,5 que se calibra con la batería. Ver [contracts/rag-tool.md](contracts/rag-tool.md).
+5. **RAG**: chunks de ~800 caracteres con solape de 100, respetando párrafos y manteniendo la página de origen; embeddings de 1536 dimensiones (coinciden con `vector(1536)`); `k = 4` y umbral de similitud inicial 0,6 que se calibra con la batería. Ver [contracts/rag-tool.md](contracts/rag-tool.md).
 6. **Observabilidad doble**: cada pregunta se escribe siempre en `logs/traza.jsonl` (cumple RF-012 aunque Phoenix no esté levantado) y, si Phoenix está activo, además queda como traza OpenTelemetry.
 7. **Evaluación**: chequeos determinísticos (valores esperados calculados con consultas SQL "doradas" contra la base, hechos del `catalog.py`, fuentes usadas, base intacta). Solo tres preguntas cualitativas usan un juez LLM con rúbrica. Ver [contracts/eval-battery.md](contracts/eval-battery.md).
 
