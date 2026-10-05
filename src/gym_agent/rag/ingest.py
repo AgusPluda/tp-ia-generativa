@@ -9,7 +9,7 @@ from pypdf import PdfReader
 
 from gym_agent.config import EMBEDDING_DIM, PDF_DIR
 from gym_agent.db import connect_admin
-from gym_agent.llm import embeber_documentos
+from gym_agent.llm import embeber_documentos, literal_vector
 from gym_agent.rag.chunking import Chunk, dividir_en_chunks
 from gym_agent.synthetic.catalog import DOCUMENTOS, Documento
 
@@ -38,11 +38,6 @@ def _verificar_dimension(vectores: list[list[float]], documento: Documento) -> N
                 "Revisá output_dimensionality / EMBEDDING_DIM en src/gym_agent/config.py, o ajustá la "
                 "columna en db/init/01_schema.sql y volvé a crear la base."
             )
-
-
-def _literal_vector(vector: list[float]) -> str:
-    """Formato de texto de pgvector (`[0.1,0.2,...]`); se castea con `::vector` en el INSERT."""
-    return "[" + ",".join(repr(x) for x in vector) + "]"
 
 
 def ingestar(directorio: Path = PDF_DIR) -> dict[str, int]:
@@ -91,7 +86,7 @@ def ingestar(directorio: Path = PDF_DIR) -> dict[str, int]:
                         VALUES (%s, %s, %s, %s, %s::vector)
                         """,
                         [
-                            (id_documento, c.pagina, c.orden, c.contenido, _literal_vector(v))
+                            (id_documento, c.pagina, c.orden, c.contenido, literal_vector(v))
                             for c, v in zip(chunks, vectores, strict=True)
                         ],
                     )

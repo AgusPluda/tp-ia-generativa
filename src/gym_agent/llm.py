@@ -102,6 +102,11 @@ def normalize(vector: list[float]) -> list[float]:
     return [x / norma for x in vector]
 
 
+def literal_vector(vector: list[float]) -> str:
+    """Formato de texto de pgvector (`[0.1,0.2,...]`); se castea con `::vector` en la consulta."""
+    return "[" + ",".join(repr(x) for x in vector) + "]"
+
+
 def es_error_transitorio(exc: BaseException) -> bool:
     """Indica si el error es de límite de tasa o del servidor y conviene reintentar.
 
