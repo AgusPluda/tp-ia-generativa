@@ -18,6 +18,7 @@ import logging
 import math
 import re
 import time
+import warnings
 from collections.abc import Callable
 from typing import Any, TypeVar
 
@@ -35,6 +36,10 @@ T = TypeVar("T")
 
 log = logging.getLogger(__name__)
 
+# Aviso de langchain-google-genai en cada llamada a un modelo que ignora la temperatura; ya está
+# documentado en `get_chat_model`.
+warnings.filterwarnings("ignore", message=r".*uses fixed sampling defaults.*", category=UserWarning)
+
 _CODIGOS_TRANSITORIOS = {429, 500, 502, 503, 504}
 _ERRORES_TRANSITORIOS = (ModelRateLimitError, ModelAPIError, ModelConnectionError, ModelTimeoutError)
 
@@ -47,7 +52,12 @@ _modelos_agotados: set[str] = set()
 
 
 def get_chat_model(modelo: str = CHAT_MODEL) -> ChatGoogleGenerativeAI:
-    """Modelo de chat de Gemini (por defecto el principal) con temperatura 0 (respuestas reproducibles)."""
+    """Modelo de chat de Gemini (por defecto el principal) con temperatura 0.
+
+    `gemini-3.5-flash-lite` ignora la temperatura (usa parámetros de muestreo fijos); se pide
+    igual porque el modelo de respaldo sí la respeta. En la práctica genera el mismo SQL entre
+    corridas (research R14).
+    """
     require_env("GEMINI_API_KEY")
     return ChatGoogleGenerativeAI(model=modelo, temperature=0, max_retries=1)
 

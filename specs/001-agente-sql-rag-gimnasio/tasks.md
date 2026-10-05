@@ -185,6 +185,7 @@ Después de la Fase 2:
 - **Reintentos de la SQL tool**: se reintenta (hasta `MAX_INTENTOS_SQL` = 3 intentos en total) solo ante `INVALIDA`, `ERROR_EJECUCION` y `TIMEOUT`. `NO_ES_SELECT` y `FUERA_DE_ESQUEMA` **no** se reintentan: dar más oportunidades al LLM tras un intento de escritura o de leer `rag` no aporta nada. Esto ajusta el contrato (se actualiza en T053).
 - **Umbral de la RAG tool = 0,6**, no 0,5: según [research.md](research.md#r9-chunking-e-ingesta) (T031), 0,6 filtra lo que está fuera de dominio ("¿Quién ganó el mundial?" saca 0,52). **No** decide si los documentos responden la pregunta: "estacionamiento" (B08) saca 0,69 y las respuestas válidas desde 0,72, así que esa verificación es de la síntesis (Etapa 2).
 - **Las tools solo usan `connect_ro()`**; nunca `connect_admin()` (principio II).
+- **Modelo de chat**: desde el 2026-10-05 es `gemini-3.5-flash-lite`, con `gemini-3.1-flash-lite` de respaldo (`CHAT_MODELS` en `config.py`). Las tareas de la Etapa 0 mencionan `gemini-3.8-flash` porque era el modelo de ese momento; el motivo del cambio está en [research.md](research.md#r14-sql-tool-validación-con-el-llm).
 
 ## Fase 6: Preparación de la Etapa 1
 

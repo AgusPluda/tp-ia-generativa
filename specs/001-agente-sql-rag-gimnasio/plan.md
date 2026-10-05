@@ -31,7 +31,7 @@ La entrega es el 16/10/2026; las fechas dejan un día de margen.
 |---------|---------|-----|
 | `langgraph` | 1.2.12 | Grafo del agente |
 | `langchain-core` | 1.6.6 | Mensajes, salida estructurada |
-| `langchain-google-genai` | 4.4.0 | Chat `gemini-3.8-flash` y embeddings `gemini-embedding-001` |
+| `langchain-google-genai` | 4.4.0 | Chat `gemini-3.5-flash-lite` (respaldo `gemini-3.1-flash-lite`) y embeddings `gemini-embedding-001` |
 | `psycopg[binary]` | 3.3.6 | Conexiones a Postgres (admin y solo lectura) |
 | `sqlglot` | 30.21.0 | Validación sintáctica de las consultas generadas |
 | `pypdf` | 6.19.0 | Extracción de texto por página |
@@ -171,7 +171,7 @@ README.md
 
 | Riesgo | Mitigación |
 |--------|------------|
-| El identificador `gemini-3.8-flash` no es aceptado por la versión fijada de `langchain-google-genai` | Tarea de humo en la Etapa 0: una llamada de chat y una de embeddings antes de seguir. El modelo se lee de `config.py` para cambiarlo en un solo lugar. |
+| El identificador del modelo de chat no es aceptado por la versión fijada de `langchain-google-genai`, o la cuota del plan gratuito no alcanza (pasó con `gemini-3.8-flash`, 20 pedidos por día; se cambió a `gemini-3.5-flash-lite`, research R14) | Tarea de humo en la Etapa 0: una llamada de chat y una de embeddings antes de seguir. El modelo se lee de `config.py` para cambiarlo en un solo lugar. |
 | Límites de cuota de la API durante la evaluación (26 preguntas × 2 a 3 llamadas) | Reintentos con espera exponencial y pausa configurable entre preguntas en el runner. |
 | El LLM genera SQL incorrecto para "último mes" o "no asistió" | Glosario de negocio en el prompt (definiciones de la spec) y verificación en la batería. |
 | Dimensión de embeddings inconsistente | Verificación al iniciar la ingesta: si el vector no tiene 1536 elementos, falla con un mensaje claro. |

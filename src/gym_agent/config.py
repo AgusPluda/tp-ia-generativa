@@ -35,9 +35,11 @@ SEED: int = 20261003
 
 # --- Modelos de Gemini (research R2, confirmados en T008) -------------------
 
-CHAT_MODELS: tuple[str, ...] = ("gemini-3.8-flash", "gemini-3.1-flash-lite")
+CHAT_MODELS: tuple[str, ...] = ("gemini-3.5-flash-lite", "gemini-3.1-flash-lite")
 """Modelos de chat en orden de preferencia, con temperatura 0. Si el plan gratuito agota la cuota
-diaria de uno, se pasa al siguiente (research R14). Solo el chat: los embeddings no se alternan."""
+diaria de uno, se pasa al siguiente (research R14). Solo el chat: los embeddings no se alternan.
+El principal tiene 15 pedidos por minuto y 500 por día; `gemini-3.8-flash` se descartó por su
+límite de 20 por día."""
 
 CHAT_MODEL: str = CHAT_MODELS[0]
 """Modelo de chat principal."""

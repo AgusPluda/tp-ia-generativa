@@ -1,24 +1,22 @@
 """Prueba de humo (descartable) de Gemini: chat y embeddings. T008.
 
 Uso: python scripts/smoke_gemini.py
-Requiere GEMINI_API_KEY en .env. Imprime la respuesta del chat y la longitud del vector.
+Requiere GEMINI_API_KEY en .env. Prueba cada modelo de `CHAT_MODELS` (una llamada por modelo)
+e imprime la longitud de los vectores de embeddings. Los nombres salen de `gym_agent.config`.
 """
 import os
 import sys
 
-from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
-CHAT_MODEL = "gemini-3.8-flash"
-EMBEDDING_MODEL = "gemini-embedding-001"
-EMBEDDING_DIM = 1536
+from gym_agent.config import CHAT_MODELS, EMBEDDING_DIM, EMBEDDING_MODEL  # también carga .env
 
-load_dotenv()
 if not os.getenv("GEMINI_API_KEY"):
     sys.exit("Falta GEMINI_API_KEY en .env (es obligatoria).")
 
-chat = ChatGoogleGenerativeAI(model=CHAT_MODEL, temperature=0)
-print("CHAT:", chat.invoke("Respondé solo con la palabra: listo").content)
+for modelo in CHAT_MODELS:
+    chat = ChatGoogleGenerativeAI(model=modelo, temperature=0)
+    print(f"CHAT {modelo}:", chat.invoke("Respondé solo con la palabra: listo").text)
 
 emb = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL, output_dimensionality=EMBEDDING_DIM)
 doc = emb.embed_documents(["El congelamiento de la cuota dura hasta 30 días."], task_type="RETRIEVAL_DOCUMENT")[0]
