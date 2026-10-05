@@ -190,8 +190,8 @@ Después de la Fase 2:
 
 **Propósito**: constantes y marcador de tests que usan las dos tools.
 
-- [ ] T035 Agregar a `src/gym_agent/config.py`, con comentario cada una: `K_FRAGMENTOS = 4` (fragmentos máximos que devuelve la RAG tool), `UMBRAL_SIMILITUD = 0.6` (comentar que filtra ruido y **no** decide si hay respuesta; ver research R9) y `MAX_INTENTOS_SQL = 3` (intentos totales de la SQL tool: el primero más dos reintentos). `MAX_FILAS` (50) y `STATEMENT_TIMEOUT_S` (5) ya existen.
-- [ ] T036 [P] Registrar el marcador `llm` en `[tool.pytest.ini_options]` de `pyproject.toml` (`markers = ["llm: llama a la API de Gemini; se saltea si falta GEMINI_API_KEY"]`) y crear `tests/conftest.py` con un `pytest_collection_modifyitems` que agrega `pytest.mark.skip` a los tests marcados `llm` cuando `GEMINI_API_KEY` no está definida (tras cargar `.env` con `gym_agent.config`).
+- [x] T035 Agregar a `src/gym_agent/config.py`, con comentario cada una: `K_FRAGMENTOS = 4` (fragmentos máximos que devuelve la RAG tool), `UMBRAL_SIMILITUD = 0.6` (comentar que filtra ruido y **no** decide si hay respuesta; ver research R9) y `MAX_INTENTOS_SQL = 3` (intentos totales de la SQL tool: el primero más dos reintentos). `MAX_FILAS` (50) y `STATEMENT_TIMEOUT_S` (5) ya existen.
+- [x] T036 [P] Registrar el marcador `llm` en `[tool.pytest.ini_options]` de `pyproject.toml` (`markers = ["llm: llama a la API de Gemini; se saltea si falta GEMINI_API_KEY"]`) y crear `tests/conftest.py` con un `pytest_collection_modifyitems` que agrega `pytest.mark.skip` a los tests marcados `llm` cuando `GEMINI_API_KEY` no está definida (tras cargar `.env` con `gym_agent.config`).
 
 **Punto de control**: `pytest --markers` lista `llm`; `from gym_agent.config import UMBRAL_SIMILITUD, K_FRAGMENTOS, MAX_INTENTOS_SQL` funciona.
 

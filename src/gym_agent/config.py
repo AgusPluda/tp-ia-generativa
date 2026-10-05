@@ -52,6 +52,19 @@ MAX_FILAS: int = 50
 STATEMENT_TIMEOUT_S: int = 5
 """Timeout de cada consulta; el rol `agente_ro` ya lo tiene configurado en la base."""
 
+MAX_INTENTOS_SQL: int = 3
+"""Intentos totales de la SQL tool por pregunta: el primero más dos reintentos."""
+
+# --- Parámetros de la RAG tool ----------------------------------------------
+
+K_FRAGMENTOS: int = 4
+"""Máximo de fragmentos que devuelve la RAG tool."""
+
+UMBRAL_SIMILITUD: float = 0.6
+"""Similitud mínima para devolver un fragmento. Solo filtra ruido y NO decide si hay respuesta:
+las preguntas válidas puntúan 0,72-0,79 y una fuera de tema como B08 llega a 0,69 (research R9);
+esa decisión la toma la síntesis de la Etapa 2."""
+
 
 def require_env(nombre: str) -> str:
     """Devuelve la variable de entorno `nombre` o falla con un mensaje que indica cómo resolverlo.
