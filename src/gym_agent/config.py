@@ -35,8 +35,12 @@ SEED: int = 20261003
 
 # --- Modelos de Gemini (research R2, confirmados en T008) -------------------
 
-CHAT_MODEL: str = "gemini-3.8-flash"
-"""Modelo de chat; se usa con temperatura 0."""
+CHAT_MODELS: tuple[str, ...] = ("gemini-3.8-flash", "gemini-3.1-flash-lite")
+"""Modelos de chat en orden de preferencia, con temperatura 0. Si el plan gratuito agota la cuota
+diaria de uno, se pasa al siguiente (research R14). Solo el chat: los embeddings no se alternan."""
+
+CHAT_MODEL: str = CHAT_MODELS[0]
+"""Modelo de chat principal."""
 
 EMBEDDING_MODEL: str = "gemini-embedding-001"
 """Modelo de embeddings para chunks y preguntas."""

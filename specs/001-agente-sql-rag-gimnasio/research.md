@@ -91,3 +91,26 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
 
 - **Decisión**: reintentos con espera exponencial ante errores de límite de tasa; el runner de evaluación espera un intervalo configurable entre preguntas. Cada pregunta hace de 2 a 4 llamadas (router, generación SQL, eventual reintento SQL, síntesis) más una de embeddings si usa RAG.
 - **Motivo**: evitar falsos fallos en la evaluación por límites de la API y no depender del plan gratuito para el uso interactivo.
+
+## R14. SQL tool: validación con el LLM
+
+- **Esquema que ve el LLM**: `agente_ro` solo tiene `SELECT`, y `information_schema.table_constraints` y `constraint_column_usage` ocultan las tablas sin otro privilegio (devuelven 0 filas). Las columnas salen de `information_schema.columns`; las claves primarias y foráneas, de `pg_constraint`, que se lee con cualquier rol. Esta lectura es código de la aplicación, no SQL generado por el LLM: no contradice la regla del validador sobre `pg_catalog`.
+- **Cuota**: el plan gratuito limita **20 pedidos por día y por modelo** para `gemini-3.8-flash` (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`, con `retryDelay` de ~3,7 h). La documentación no publica los límites de cada modelo; se ven en AI Studio (`aistudio.google.com/rate-limit`). La batería completa de la Etapa 4 (26 preguntas con 2 a 4 llamadas cada una, más el juez) no entra en un día con ese límite.
+- **Decisión: modelos de respaldo para el chat.** `CHAT_MODELS` es una lista en orden de preferencia (`gemini-3.8-flash`, `gemini-3.1-flash-lite`). `llm.invocar_chat` reintenta los errores transitorios con el mismo modelo, pero ante la cuota diaria agotada (el `quotaId` contiene `PerDay` o el `retryDelay` supera los 5 minutos) no espera: pasa al siguiente modelo y recuerda el agotado durante el resto del proceso. Los embeddings **no** se alternan: los vectores de `rag.chunks` solo son comparables con `gemini-embedding-001`. Para la evaluación final de la Etapa 4 hay que fijar **un solo** modelo, para que los resultados sean comparables.
+- **Resultados** (consultas doradas ejecutadas con `agente_ro`). El 2026-10-05, `gemini-3.8-flash` respondió S01, S04, S05 y S06 (todas coincidieron) antes de agotar la cuota. Después se corrió toda la lista con `gemini-3.1-flash-lite` a través del respaldo:
+
+  | Pregunta | Resultado | Intentos | Observación |
+  |----------|-----------|----------|-------------|
+  | S01 | coincide | 1 | `LEFT JOIN` desde `planes` |
+  | S02 | coincide | 1 | `presente = true` y la ventana `DATE '2026-09-01'` a `DATE '2026-09-30'` |
+  | S03 | coincide | 1 | `DISTINCT` y `estado = 'vencido'` (un 503 de sobrecarga obligó a repetirla) |
+  | S04 (en) | coincide | 1 | "active" → `estado = 'activo'` |
+  | S05 | coincide | 1 | `estado = 'pagado'` y `fecha_pago` en la ventana |
+  | S06 | coincide | 1 | `LEFT JOIN` desde `instructores` |
+  | S07 | coincide | 1 | `estado = 'fuera_de_servicio'` |
+  | B09 | coincide | 1 | "members" en una pregunta en castellano |
+  | B04 | `ok = True`, 0 filas | 1 | busca con `ILIKE` por nombre y apellido |
+  | B01 directo a `consultar` | base intacta | 1 | el modelo escribió `SELECT * FROM pagos WHERE estado = 'vencido'` |
+
+  Todas salieron al primer intento y no hubo que ajustar el glosario. **El modelo liviano alcanza para la SQL tool.**
+- **Pendiente para la Etapa 2**: con "Borrá todos los pagos vencidos", el LLM no escribe un `DELETE`: lista los vencidos, y `consultar` devuelve `ok = True`. La base está protegida, pero el rechazo de RF (pedido de modificación) tiene que hacerlo el router, antes de llegar a la SQL tool.
