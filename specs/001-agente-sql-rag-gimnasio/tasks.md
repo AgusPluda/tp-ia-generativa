@@ -1,13 +1,13 @@
 ---
 
-description: "Tareas de la Etapa 0 (setup) del agente SQL + RAG para gimnasio"
+description: "Tareas de la Etapa 0 (setup, completada) y de la Etapa 1 (tools SQL y RAG) del agente SQL + RAG para gimnasio"
 ---
 
 # Tareas: Agente conversacional SQL + RAG para gimnasio, Etapa 0 (Setup)
 
 **Entrada**: documentos de diseño en `specs/001-agente-sql-rag-gimnasio/` ([plan.md](plan.md), [spec.md](spec.md), [data-model.md](data-model.md), [research.md](research.md), [contracts/](contracts/), [quickstart.md](quickstart.md)).
 
-**Alcance**: solo la **Etapa 0** del plan (entorno, datos sintéticos deterministas, 3 PDFs sintéticos e ingesta a `rag.chunks`). Fecha objetivo: 06/10/2026. Las etapas 1 a 5 (tools, agente, interfaz, evaluación, cierre) se generan después con `/speckit-tasks`.
+**Alcance de la Etapa 0**: solo la **Etapa 0** del plan (entorno, datos sintéticos deterministas, 3 PDFs sintéticos e ingesta a `rag.chunks`), completada. Fecha objetivo: 06/10/2026. La **Etapa 1** (tools SQL y RAG) está al final de este archivo, desde la Fase 6. Las etapas 2 a 5 se generan después con `/speckit-tasks`.
 
 **Tests**: el plan y el quickstart piden tests de invariantes de datos, determinismo (CE-007), chunking y rol de solo lectura (CE-003); por eso se incluyen. Ninguno llama al LLM salvo la tarea de humo T008.
 
@@ -166,3 +166,149 @@ Después de la Fase 2:
 - Los valores numéricos de `catalog.py` (T014) son una propuesta concreta para que la batería tenga respuestas determinadas; pueden ajustarse mientras no cambien después de definir la batería de evaluación.
 - El generador no usa la fecha real del sistema en ningún punto (RF-015); cualquier fecha se calcula desde `REFERENCE_DATE`.
 - Los scripts `scripts/smoke_gemini.py` y el de T031 son descartables: no forman parte de la entrega y pueden borrarse al cerrar la etapa.
+
+---
+---
+
+# Etapa 1: Tools (SQL y RAG)
+
+**Alcance**: la SQL tool ([contracts/sql-tool.md](contracts/sql-tool.md)) y la RAG tool ([contracts/rag-tool.md](contracts/rag-tool.md)), cada una como función Python independiente del grafo, con sus tests. El grafo, el router y la síntesis son la Etapa 2. Fecha objetivo: 08/10/2026. Continúa la numeración de fases y tareas de la Etapa 0.
+
+**Historias que habilita**: Historia 1 (`[US1]`, P1, SQL tool, incluida la defensa contra escrituras de la Historia 4 y CE-003) e Historia 2 (`[US2]`, P1, RAG tool). Son independientes entre sí y se pueden hacer en paralelo.
+
+**Tests**: se piden tests unitarios (sin LLM ni base) y de integración (con la base; los que usan la API de Gemini llevan el marcador `llm` y se saltean sin `GEMINI_API_KEY`). Escribirlos antes de la implementación y verificar que fallan.
+
+**Decisiones de diseño de la etapa** (para que no queden al criterio de quien implementa):
+
+- **Nunca lanzan excepciones**: `consultar(...)` y `buscar(...)` devuelven siempre un resultado; los fallos viajan en `error` (el grafo de la Etapa 2 depende de esto).
+- **Inyección de dependencias para testear**: `consultar` acepta `generador` y `ejecutor`; `buscar` acepta `embeber`. Por defecto usan Gemini y la base; los tests pasan versiones falsas.
+- **Reintentos de la SQL tool**: se reintenta (hasta `MAX_INTENTOS_SQL` = 3 intentos en total) solo ante `INVALIDA`, `ERROR_EJECUCION` y `TIMEOUT`. `NO_ES_SELECT` y `FUERA_DE_ESQUEMA` **no** se reintentan: dar más oportunidades al LLM tras un intento de escritura o de leer `rag` no aporta nada. Esto ajusta el contrato (se actualiza en T053).
+- **Umbral de la RAG tool = 0,6**, no 0,5: según [research.md](research.md#r9-chunking-e-ingesta) (T031), 0,6 filtra lo que está fuera de dominio ("¿Quién ganó el mundial?" saca 0,52). **No** decide si los documentos responden la pregunta: "estacionamiento" (B08) saca 0,69 y las respuestas válidas desde 0,72, así que esa verificación es de la síntesis (Etapa 2).
+- **Las tools solo usan `connect_ro()`**; nunca `connect_admin()` (principio II).
+
+## Fase 6: Preparación de la Etapa 1
+
+**Propósito**: constantes y marcador de tests que usan las dos tools.
+
+- [ ] T035 Agregar a `src/gym_agent/config.py`, con comentario cada una: `K_FRAGMENTOS = 4` (fragmentos máximos que devuelve la RAG tool), `UMBRAL_SIMILITUD = 0.6` (comentar que filtra ruido y **no** decide si hay respuesta; ver research R9) y `MAX_INTENTOS_SQL = 3` (intentos totales de la SQL tool: el primero más dos reintentos). `MAX_FILAS` (50) y `STATEMENT_TIMEOUT_S` (5) ya existen.
+- [ ] T036 [P] Registrar el marcador `llm` en `[tool.pytest.ini_options]` de `pyproject.toml` (`markers = ["llm: llama a la API de Gemini; se saltea si falta GEMINI_API_KEY"]`) y crear `tests/conftest.py` con un `pytest_collection_modifyitems` que agrega `pytest.mark.skip` a los tests marcados `llm` cuando `GEMINI_API_KEY` no está definida (tras cargar `.env` con `gym_agent.config`).
+
+**Punto de control**: `pytest --markers` lista `llm`; `from gym_agent.config import UMBRAL_SIMILITUD, K_FRAGMENTOS, MAX_INTENTOS_SQL` funciona.
+
+---
+
+## Fase 7: Historia 1, SQL tool (P1)
+
+**Objetivo**: `consultar(pregunta, idioma)` convierte una pregunta en un único `SELECT` válido, lo ejecuta en solo lectura y devuelve un `ResultadoSQL` (contrato [sql-tool.md](contracts/sql-tool.md)).
+
+**Prueba independiente**: `pytest tests/unit/test_sql_validator.py tests/unit/test_sql_tool.py tests/integration/test_sql_executor.py` en verde (sin LLM) y T044 (las 7 preguntas SQL de la batería contra el LLM real).
+
+### Tests de la fase
+
+> Escribirlos primero y verificar que fallan (ModuleNotFoundError) antes de implementar.
+
+- [ ] T037 [P] [US1] Crear `tests/unit/test_sql_validator.py` (sin base ni LLM) para `gym_agent.tools.sql_validator.validar(sql) -> str` y `SQLNoPermitido(codigo, detalle)`. Con `pytest.mark.parametrize`:
+  - **Se aceptan** (y se devuelve la consulta sin `;` final): `SELECT` simple; `WITH ... SELECT`; joins, agregaciones, subconsultas y funciones de ventana; `fecha BETWEEN DATE '2026-09-01' AND DATE '2026-09-30'`; `ILIKE`; una consulta con un comentario `-- ...` o `/* ... */` que no esconde nada; un `SELECT` con `;` final; un literal como `'today%'` dentro de un `ILIKE` (no es igual a `'today'`).
+  - **`NO_ES_SELECT`**: `INSERT`, `UPDATE`, `DELETE`, `DROP TABLE socios`, `ALTER`, `CREATE`, `TRUNCATE`, `GRANT`, `COPY`, `CALL`, `DO`, `SET`; `SELECT 1; DELETE FROM pagos` y `SELECT 1; -- x` seguido de `DELETE` en otra línea (varios statements con alguno que no es `SELECT`); `SELECT * INTO nueva FROM socios`; `SELECT * FROM socios FOR UPDATE`; `WITH x AS (DELETE FROM pagos RETURNING *) SELECT * FROM x` (Postgres admite DML dentro de un CTE).
+  - **`FUERA_DE_ESQUEMA`**: `SELECT * FROM rag.chunks`; `rag.documentos` dentro de un `JOIN`, de una subconsulta y de un CTE; `"rag"."chunks"` entrecomillado; `RAG.chunks` en mayúsculas; `pg_catalog.pg_tables`; `information_schema.columns`.
+  - **`INVALIDA`**: texto vacío o solo espacios; texto que no es SQL (`"hola"`); sintaxis rota (`SELEC * FROM socios`); dos `SELECT` separados por `;`; funciones de reloj `now()`, `NOW()`, `CURRENT_DATE`, `CURRENT_TIMESTAMP`, `current_time`, `localtimestamp`, `clock_timestamp()`, `statement_timestamp()`, `transaction_timestamp()`; los literales especiales de fecha de Postgres `'now'::timestamp`, `'today'::date`, `'tomorrow'::date`, `'yesterday'::date` (se evalúan con el reloj real); `pg_sleep(10)`, `pg_read_file('/etc/passwd')`, `pg_ls_dir('.')`, `set_config('x','y',false)`, `lo_import('/etc/passwd')`, `dblink('...','...')`.
+- [ ] T038 [P] [US1] Crear `tests/unit/test_sql_tool.py` (sin base ni LLM; generador y ejecutor falsos). Cubre:
+  - (a) `consultar` con un generador que devuelve un `SELECT` válido y un ejecutor falso → `ok = True`, `intentos = 1`, `sql_ejecutado` igual a la consulta validada.
+  - (b) primera consulta inválida (`SELECT now()`) y segunda válida → `intentos = 2`, y el generador recibió en el segundo llamado el SQL anterior y un mensaje de error **saneado**.
+  - (c) tres consultas inválidas → `ok = False`, `error.codigo = "INVALIDA"`, `intentos = 3`, el generador no se llama una cuarta vez.
+  - (d) `DELETE FROM pagos` → `NO_ES_SELECT` con `intentos = 1` (sin reintento); `SELECT * FROM rag.chunks` → `FUERA_DE_ESQUEMA`, también sin reintento; en ambos casos el ejecutor falso **no** se llamó.
+  - (e) el ejecutor falso devuelve `TIMEOUT` y luego éxito → se reintenta y `ok = True`; devuelve `ERROR_EJECUCION` tres veces → `ok = False`, `intentos = 3`.
+  - (f) 0 filas → `ok = True`, `filas = []`, `truncado = False`.
+  - (g) el generador lanza una excepción (falla del LLM) → `ok = False`, `ERROR_EJECUCION`, no se propaga la excepción.
+  - (h) `ErrorSQL.mensaje` coincide con el texto de la tabla de errores del contrato para cada código y **no** contiene `detalle`.
+  - (i) `sanear_error(texto)` reemplaza host (`localhost`, `127.0.0.1`, `::1`), usuario (`agente_ro`, `gym_admin`), puertos, rutas de Windows (`E:\REPOSITORIOS\...`) y de Linux (`/var/lib/...`) y cualquier valor de `AGENTE_RO_PASSWORD`/`POSTGRES_PASSWORD` presente en el entorno, pero conserva el motivo útil (por ejemplo `column "xyz" does not exist`).
+  - (j) `construir_prompt_sql(esquema, pregunta, idioma, intento_previo)` (de `sql_prompt.py`): contiene el esquema recibido, la pregunta, `2026-09-30`, la ventana `2026-09-01` a `2026-09-30` como fechas literales, la aclaración de que `dia_semana` va **sin tildes** (`miercoles`, `sabado`), la prohibición de `CURRENT_DATE`/`now()`, y en un reintento incluye la consulta anterior y el error saneado.
+- [ ] T039 [P] [US1] Crear `tests/integration/test_sql_executor.py` (requiere la base; **sin LLM**; usa `conn_admin` solo para el hash de control). Cubre `ejecutar_sql` y `describir_esquema`:
+  - `SELECT * FROM planes` → 5 filas, `truncado = False`; `SELECT * FROM asistencias` → exactamente 50 filas y `truncado = True`; las columnas vienen en `columnas`.
+  - Los valores son serializables a JSON (`json.dumps(resultado.filas)` no falla: fechas como texto ISO, `Decimal` como número).
+  - Timeout: `SELECT count(*) FROM generate_series(1, 100000000000)` → `TIMEOUT` en menos de 10 s.
+  - **Defensa en profundidad** (CE-003): llamando a `ejecutar_sql` **sin pasar por el validador**, `DELETE FROM pagos`, `UPDATE socios SET estado = 'baja'`, `DROP TABLE socios` y `INSERT INTO planes ...` devuelven `ok = False` con `NO_ES_SELECT`, y `hash_tablas` (de `gym_agent.synthetic`) es idéntico antes y después.
+  - `SELECT columna_inexistente FROM socios` → `ERROR_EJECUCION`; `error.detalle` guarda el texto de la base y `error.mensaje` no.
+  - `describir_esquema()` incluye las 7 tablas de `public` con sus columnas y claves foráneas y **no** contiene `rag`, `chunks` ni `embedding`.
+
+### Implementación de la fase
+
+- [ ] T040 [US1] Crear `src/gym_agent/tools/sql_validator.py`: `class SQLNoPermitido(Exception)` con `codigo` (`"NO_ES_SELECT"` | `"FUERA_DE_ESQUEMA"` | `"INVALIDA"`) y `detalle`, y `validar(sql: str) -> str` que implementa los pasos de validación del contrato con `sqlglot` 30.21.0, dialecto `postgres`:
+  - Sin texto, sin parseo o más de un statement → `INVALIDA`; **excepción**: si entre varios statements hay alguno que no es `SELECT`, el código es `NO_ES_SELECT`.
+  - La raíz debe ser `SELECT` (se admite `WITH ... SELECT`); cualquier nodo de escritura o DDL **en cualquier parte del árbol** (incluido un `DELETE` dentro de un CTE), `SELECT ... INTO` o `FOR UPDATE`/`FOR SHARE` → `NO_ES_SELECT`.
+  - Toda tabla con esquema o catálogo `rag`, `pg_catalog` o `information_schema` (sin distinguir mayúsculas ni comillas) → `FUERA_DE_ESQUEMA`.
+  - Funciones de reloj, cualquier función que empiece con `pg_` o `lo_`, `set_config` y `dblink*`, y literales de texto que sean exactamente `now`, `today`, `tomorrow` o `yesterday` (sin distinguir mayúsculas) → `INVALIDA`.
+  - Devuelve la consulta original sin espacios sobrantes ni `;` final (no la regenerada por `sqlglot`, para mostrar en la UI lo que escribió el LLM).
+  - Antes de escribirlo, comprobar con una prueba rápida en la consola los nombres reales de los nodos de `sqlglot` 30.21.0 (`exp.Into`, `exp.Lock`, `exp.CurrentDate`, `exp.CurrentTimestamp`, `exp.Anonymous`, `exp.Command`, etc.), porque difieren entre versiones. Docstring que liste las reglas.
+- [ ] T041 [P] [US1] Crear `src/gym_agent/tools/sql_prompt.py`: `describir_esquema() -> str` (lee `information_schema` con `connect_ro()` **solo para `public`**: tablas, columnas con tipo y si admiten NULL, claves primarias y foráneas, en texto compacto; se calcula una vez y se guarda con `functools.cache`); `GLOSARIO` (las definiciones de [data-model.md](data-model.md#definiciones-de-negocio-que-el-agente-debe-respetar): "hoy" = `REFERENCE_DATE`, "último mes" = `fecha BETWEEN REFERENCE_DATE - 29 AND REFERENCE_DATE` **escrito como fechas literales calculadas desde `REFERENCE_DATE`**, "no asistió" = `presente = false`, "pago vencido" = `estado = 'vencido'` y un `pendiente` no lo es, "socio activo", "equipo en mantenimiento"; valores válidos de cada `estado`, `medio_pago` y `dia_semana`; este último **sin tildes**); y `construir_prompt_sql(esquema, pregunta, idioma, intento_previo=None) -> str` con las reglas: un único `SELECT`, sin `CURRENT_DATE`/`now()` ni literales `'today'`, solo tablas del esquema dado, nombres de columnas exactos, fechas literales, y en un reintento la consulta anterior y el error saneado. Docstrings.
+- [ ] T042 [US1] Crear `src/gym_agent/tools/sql_tool.py` (parte 1, sin LLM): modelos Pydantic `ErrorSQL(codigo, mensaje, detalle)` y `ResultadoSQL(ok, sql_ejecutado, columnas, filas, truncado, intentos, error)` según el contrato; `MENSAJES` con el texto de usuario de cada código (tabla de errores del contrato, en castellano); `sanear_error(texto) -> str` (ver T038 (i)); y `ejecutar_sql(sql) -> ResultadoSQL` que abre `connect_ro()`, pone `conn.read_only = True`, ejecuta `SET LOCAL statement_timeout = '{STATEMENT_TIMEOUT_S}s'`, corre la consulta, lee `fetchmany(MAX_FILAS + 1)` (si hay más de `MAX_FILAS`, corta y marca `truncado`), convierte fechas a texto ISO y `Decimal` a número, y cierra siempre la conexión. Mapeo de errores de `psycopg`: `QueryCanceled` → `TIMEOUT`; `ReadOnlySqlTransaction` e `InsufficientPrivilege` → `NO_ES_SELECT`; cualquier otro `psycopg.Error` o `RuntimeError` de conexión → `ERROR_EJECUCION`; el texto técnico va en `detalle`.
+- [ ] T043 [US1] Completar `src/gym_agent/tools/sql_tool.py` (parte 2, con LLM): `class ConsultaSQL(BaseModel)` con el campo `sql: str`; `generar_sql_llm(pregunta, idioma, intento_previo=None) -> str` que arma el prompt con `describir_esquema()` y `construir_prompt_sql`, y llama a `get_chat_model().with_structured_output(ConsultaSQL)` a través de `reintentar` (de `gym_agent.llm`); y `consultar(pregunta, idioma, *, generador=generar_sql_llm, ejecutor=ejecutar_sql) -> ResultadoSQL` con el bucle de hasta `MAX_INTENTOS_SQL` intentos: generar → `validar` → ejecutar; las reglas de reintento y de "no reintentar `NO_ES_SELECT`/`FUERA_DE_ESQUEMA`" de esta etapa; el mensaje de error que se le pasa al LLM pasa por `sanear_error`; `intentos` cuenta las consultas generadas; **nunca lanza excepciones** (incluida una falla del LLM). Docstrings.
+- [ ] T044 [US1] Validación con el LLM real (script descartable en el directorio temporal de la sesión, **no versionado**; requiere `GEMINI_API_KEY` y la base cargada): pasar por `consultar` las preguntas S01 a S07 de [eval-battery.md](contracts/eval-battery.md) y comparar cada resultado con la consulta SQL escrita a mano (la "dorada") ejecutada con `agente_ro`; revisar que "último mes" use las fechas literales `2026-09-01` a `2026-09-30`, que "asistencias" cuente `presente = true` y que "vencido" use `estado = 'vencido'`. Probar además: un socio inexistente (B04) → `ok = True` con `filas = []`; y "Borrá todos los pagos vencidos" enviado **directo** a `consultar` (sin router) → no cambia el hash de las tablas (`hash_tablas`). Si alguna no coincide, ajustar el glosario/prompt de T041 y repetir. Anotar los resultados y los ajustes en [research.md](research.md) (nueva sección R14, "SQL tool: validación con el LLM").
+
+**Punto de control**: los tests de la fase pasan; las 7 preguntas SQL devuelven lo mismo que sus consultas doradas; ningún intento de escritura cambia la base.
+
+---
+
+## Fase 8: Historia 2, RAG tool (P1)
+
+**Objetivo**: `buscar(pregunta)` devuelve los fragmentos más similares de los PDFs con documento y página, o ninguno si no pasan el umbral (contrato [rag-tool.md](contracts/rag-tool.md)).
+
+**Prueba independiente**: `pytest tests/unit/test_rag_tool.py tests/integration/test_rag_tool_db.py` en verde sin LLM y `pytest -m llm tests/integration/test_rag_tool_llm.py` con la clave.
+
+### Tests de la fase
+
+- [ ] T045 [P] [US2] Crear `tests/unit/test_rag_tool.py` (sin base ni LLM; `embeber` y el acceso a la base inyectados como funciones falsas). Cubre `buscar`: (a) conserva los fragmentos con `similitud >= umbral` (el valor igual al umbral **se conserva**), los devuelve ordenados de mayor a menor y descarta el resto; (b) si ninguno pasa, `ok = True` y `fragmentos == []`; (c) pasa `k` a la consulta; (d) si `embeber` lanza una excepción → `ok = False`, `EMBEDDING_FALLO`; (e) un vector que no tiene 1536 elementos → `DIMENSION_INVALIDA` y no se consulta la base; (f) si la consulta lanza una excepción → `ERROR_EJECUCION`; (g) en todos los casos de error `buscar` no propaga la excepción y `error.detalle` guarda el texto técnico.
+- [ ] T046 [P] [US2] Crear `tests/integration/test_rag_tool_db.py` (requiere la base ingestada; **sin LLM**; `embeber` falso). (a) Leer con `conn_admin` el embedding del chunk del reglamento que contiene "Congelamiento de la cuota"; usarlo como embedding de la pregunta: el primer fragmento es ese chunk (mismo texto), `documento = "Reglamento interno"`, `pagina = 3` y `similitud > 0.99`. (b) `k = 2` devuelve como máximo 2 fragmentos y el valor por defecto 4 como máximo 4, ordenados por similitud descendente. (c) Un vector normalizado generado con `random.Random(1)` (sin relación con ningún texto) con umbral 0,6 devuelve `[]`. (d) `Fragmento` trae `documento`, `archivo`, `pagina`, `texto`, `similitud`.
+- [ ] T047 [P] [US2] Crear `tests/integration/test_rag_tool_llm.py` con `@pytest.mark.llm` (embeddings reales de Gemini; requiere la ingesta hecha). Para cada pregunta, el primer fragmento debe ser del documento esperado: congelamiento → Reglamento interno; rutina para principiante → Guía de rutinas y nutrición; mantenimiento de cintas → Manual de uso y mantenimiento del equipamiento; cancelación de clases → Reglamento interno; qué comer antes de entrenar → Guía de rutinas y nutrición; mora → Reglamento interno. "¿Quién ganó el mundial?" → `fragmentos == []`. Además un test llamado `test_limitacion_conocida_estacionamiento` que documenta que "¿Cuál es la política de estacionamiento del gimnasio?" **sí** devuelve fragmentos (similitud ~0,69, todos del Reglamento interno), con un comentario que remite a research R9 y aclara que decidir que esos fragmentos no responden es trabajo de la síntesis (Etapa 2); si falla porque el umbral cambió, hay que revisar esa decisión, no borrar el test.
+
+### Implementación de la fase
+
+- [ ] T048 [US2] Mover `_literal_vector` de `src/gym_agent/rag/ingest.py` a `src/gym_agent/llm.py` como `literal_vector` público (junto a `normalize`, con su docstring) y actualizar `ingest.py` para importarlo; así la RAG tool no importa un módulo que usa `connect_admin()`. Verificar que `pytest tests/unit tests/integration` sigue en verde y que `python scripts/ingest_pdfs.py` sigue funcionando.
+- [ ] T049 [US2] Crear `src/gym_agent/tools/rag_tool.py`: modelos Pydantic `Fragmento(documento, archivo, pagina, texto, similitud)`, `ErrorRAG(codigo, mensaje, detalle)` y `ResultadoRAG(ok, fragmentos, error)`; y `buscar(pregunta, k=K_FRAGMENTOS, umbral=UMBRAL_SIMILITUD, *, embeber=embeber_consulta) -> ResultadoRAG` que: embebe la pregunta (el vector ya viene normalizado de `embeber_consulta`); verifica que tenga `EMBEDDING_DIM` elementos (`DIMENSION_INVALIDA` si no); ejecuta con `connect_ro()` la consulta **fija y parametrizada** del contrato (`ORDER BY c.embedding <=> %(q)s::vector LIMIT %(k)s`, con `1 - (c.embedding <=> %(q)s::vector) AS similitud` y el vector pasado con `literal_vector`); descarta los de similitud menor al umbral; y cierra siempre la conexión. Nunca lanza excepciones (códigos `EMBEDDING_FALLO`, `DIMENSION_INVALIDA`, `ERROR_EJECUCION`). El docstring del módulo explica que el umbral filtra ruido pero no decide si el documento responde la pregunta.
+- [ ] T050 [US2] Ejecutar `pytest tests/unit/test_rag_tool.py tests/integration/test_rag_tool_db.py` y después `pytest -m llm tests/integration/test_rag_tool_llm.py`; corregir hasta que pasen. Si alguna similitud difiere de lo anotado en research R9, anotar los valores nuevos allí (no ajustar el umbral en esta etapa: la calibración final es de la Etapa 4, con la batería completa y 2 o 3 reformulaciones por pregunta).
+
+**Punto de control**: `buscar` devuelve el documento y la página correctos para las 6 preguntas con respuesta y `[]` para la de fuera de dominio.
+
+---
+
+## Fase 9: Cierre de la Etapa 1
+
+**Propósito**: interfaz pública de las tools, verificación global y documentación al día.
+
+- [ ] T051 Completar `src/gym_agent/tools/__init__.py` con un docstring y las exportaciones `consultar`, `ResultadoSQL`, `ErrorSQL`, `buscar`, `ResultadoRAG`, `Fragmento`, `ErrorRAG`: es lo único que importará el grafo en la Etapa 2. Verificar con `grep` que ningún archivo de `src/gym_agent/tools/` importa `connect_admin` (principio II).
+- [ ] T052 Correr `pytest tests/unit tests/integration` (con la base levantada) y `pytest -m llm` (con la clave): todo en verde, sin tests saltados salvo los `llm` cuando falta la clave. Confirmar con `hash_tablas` que los tests no dejaron cambios en la base.
+- [ ] T053 Actualizar la documentación a lo implementado: [contracts/sql-tool.md](contracts/sql-tool.md) (reglas de reintento: `NO_ES_SELECT` y `FUERA_DE_ESQUEMA` no se reintentan; campo `mensaje` de `ErrorSQL`; filas serializadas a JSON; validación de los literales `'now'`, `'today'`, `'tomorrow'`, `'yesterday'` y de DML dentro de CTE), [contracts/rag-tool.md](contracts/rag-tool.md) (umbral 0,6 y su alcance), [plan.md](plan.md) (decisión de diseño 5, "umbral 0,5" → 0,6; y `sql_prompt.py` en la estructura de `tools/`) y la lista de tests de [quickstart.md](quickstart.md) si cambió algún comando.
+- [ ] T054 Dejar los artefactos listos para commit: `git status` sin `.env` ni `logs/`; confirmar que el script descartable de T044 no está en el repositorio; y marcar acá las tareas completadas.
+
+**Punto de control final de la Etapa 1**: `consultar` y `buscar` funcionan solas con el LLM y la base reales; los tests unitarios y de integración pasan; la Etapa 2 (grafo) puede empezar importando solo `gym_agent.tools`.
+
+---
+
+## Dependencias y orden de ejecución (Etapa 1)
+
+### Entre fases
+
+- **Fase 6**: requiere la Etapa 0 cerrada (T033). Bloquea a las Fases 7 y 8 solo por las constantes de T035 y el marcador de T036.
+- **Fase 7 (SQL tool)** y **Fase 8 (RAG tool)**: independientes entre sí; se pueden hacer en paralelo (archivos distintos). Si trabaja una sola persona: primero la Fase 7, porque la Historia 1 es el requisito mínimo.
+- **Fase 9**: requiere las Fases 7 y 8.
+
+### Dentro de las fases
+
+- Fase 7: T037 a T039 en paralelo y antes de T040; T040 y T041 en paralelo (archivos distintos); T042 puede avanzar en paralelo con ellos; T043 requiere T040, T041 y T042; T044 requiere T043 y la clave de Gemini.
+- Fase 8: T045 a T047 en paralelo y antes de T049; T048 antes de T049; T050 requiere T049 y la clave de Gemini.
+
+### Oportunidades de paralelismo
+
+```text
+Después de la Fase 6:
+  Persona A (SQL):  T037-T039 → T040 ∥ T041 → T042 → T043 → T044
+  Persona B (RAG):  T045-T047 → T048 → T049 → T050
+Después de ambas:   T051 → T052 → T053 → T054
+```
+
+## Estrategia de implementación (Etapa 1)
+
+1. **SQL tool primero** (Historia 1, P1): es lo que más riesgo de seguridad concentra; el validador (T037/T040) es la pieza que más conviene tener sólida y probada antes de conectar el LLM.
+2. **Validar con el LLM real pronto** (T044): es el riesgo principal de la etapa (SQL incorrecto para "último mes" o "no asistió"); si falla, se ajusta el glosario antes de construir el grafo encima.
+3. **No ajustar el umbral de la RAG** en esta etapa (T050): se calibra en la Etapa 4 con la batería completa; ahora solo se verifica que filtra lo evidentemente fuera de dominio.
+4. **No pasar a la Etapa 2** hasta cerrar T052.
