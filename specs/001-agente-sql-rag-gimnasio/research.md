@@ -75,6 +75,9 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
 - **Decisión**: Phoenix en Docker (imagen fijada a `version-20.19.0`, perfil `observability` del compose) con `arize-phoenix-otel` y `openinference-instrumentation-langchain`; exportación por HTTP a `http://localhost:6006/v1/traces`. Además, registro propio en `logs/traza.jsonl`.
 - **Motivo**: RF-012 no puede depender de un servicio opcional. El JSONL es la fuente para el informe y para la evaluación; Phoenix suma la visualización del grafo y de las llamadas al LLM para el coloquio.
 - **Alternativas**: LangSmith (requiere cuenta y envía datos a un servicio externo); solo logging propio (sin visualización).
+- **Verificación (2026-10-06, T072)**: con Phoenix arriba, `run_question` exportó 29 spans al proyecto `gym-agent` (consultados por `/v1/projects/gym-agent/spans`): llamadas al LLM (`ChatGoogleGenerativeAI`, tipo `LLM`) y los nodos `router`, `sql`, `rag` y `sintetizar` (tipo `CHAIN`). Las tools no aparecen como spans propios: son funciones Python llamadas dentro de los nodos `sql` y `rag`, no tools de LangChain. Con Phoenix apagado `iniciar_phoenix()` devuelve `False`, el agente responde igual y la línea de `logs/traza.jsonl` se escribe.
+- **Cuidado al arrancar Phoenix**: el puerto acepta conexiones unos segundos antes de que el servidor esté listo; si la primera pregunta llega en ese lapso, el export de esos spans falla con reintentos ruidosos (la respuesta no se ve afectada). Esperar a que `http://localhost:6006/` devuelva 200.
+- **Cuidado al bajar Phoenix**: `docker compose --profile observability down` baja también `gym_db` (mismo proyecto). Para bajar solo Phoenix usar `docker compose stop phoenix` (o `docker compose rm -sf phoenix`).
 
 ## R11. Evaluación
 
