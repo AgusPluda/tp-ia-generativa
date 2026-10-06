@@ -72,6 +72,15 @@ las preguntas válidas puntúan 0,72-0,79 y una fuera de tema como B08 llega a 0
 esa decisión la toma la síntesis de la Etapa 2."""
 
 
+# --- Observabilidad (research R10) ------------------------------------------
+
+TRAZA_PATH: Path = REPO_ROOT / "logs" / "traza.jsonl"
+"""Archivo donde se registra cada pregunta (una línea JSON); se escribe siempre, con o sin Phoenix."""
+
+PHOENIX_ENDPOINT: str = "http://localhost:6006/v1/traces"
+"""Endpoint OTLP de Phoenix (perfil `observability` de docker compose); es opcional."""
+
+
 def require_env(nombre: str) -> str:
     """Devuelve la variable de entorno `nombre` o falla con un mensaje que indica cómo resolverlo.
 
