@@ -38,6 +38,8 @@ Sin checkpointer ni memoria: cada invocación parte de un estado vacío (RF-017)
 | `resultado_sql` | `ResultadoSQL` \| null | `sql` ([contrato](sql-tool.md)) |
 | `resultado_rag` | `ResultadoRAG` \| null | `rag` ([contrato](rag-tool.md)) |
 | `respuesta` | str | `sintetizar` / `rechazar` |
+| `fuentes_usadas` | `"sql"` \| `"rag"` \| `"ambas"` \| `"ninguna"` | `sintetizar` / `rechazar` |
+| `fragmentos_citados` | list[int] | `sintetizar` / `rechazar`: números (base 1) de los fragmentos de `resultado_rag` que respaldan la respuesta |
 
 ## Nodos
 
@@ -61,10 +63,16 @@ Ejecuta la RAG tool y guarda `resultado_rag`. Con la ruta `ambas`, corre despué
 ### `sintetizar`
 - **Entrada**: pregunta, idioma, resultados disponibles.
 - **Reglas del prompt**: responder **solo** con lo que traen los resultados; en el idioma de la pregunta; si SQL devolvió 0 filas o RAG no devolvió fragmentos, decir que no se encontró información y no inventar; si hay `truncado`, aclararlo; si falló una tool, explicarlo sin detalles técnicos; explicitar cualquier supuesto (por ejemplo, el significado de "esta semana"); para preguntas híbridas, cubrir las dos partes.
-- **Salida**: `respuesta`.
+- **Salida** (estructurada, `Sintesis`): `respuesta` y `fuentes_usadas`, la lista de números (base 1) de los fragmentos que respaldan la respuesta; vacía si ninguno. El nodo descarta los números inexistentes y los repetidos y los guarda en `fragmentos_citados`.
+- **`fuentes_usadas` del estado** (`sql`, `rag`, `ambas` o `ninguna`) se calcula según **lo que se ejecutó**, no según lo que diga el LLM.
+- Con la ruta `ambas` y la SQL tool fallida, el grafo sigue con `rag` y la síntesis explica la falla de la parte SQL con su `mensaje` (nunca el `detalle`).
+- La pregunta, las filas y los fragmentos van entre marcas (`<pregunta>`, `<datos_sql>`, `<fragmentos>`) y el prompt los declara datos, no instrucciones.
 
 ### `rechazar`
-Redacta, en el idioma de la pregunta, una respuesta breve según `motivo_rechazo`: solo se puede consultar información (modificación), solo se responde sobre el gimnasio (fuera de dominio), o hay que formular cada pregunta completa (falta de contexto). No consulta ninguna fuente.
+Responde con una **plantilla fija** por (`motivo_rechazo`, idioma), sin LLM: solo se puede consultar información (modificación), solo se responde sobre el gimnasio (fuera de dominio), o hay que formular cada pregunta completa (falta de contexto). No consulta ninguna fuente y deja `fuentes_usadas = "ninguna"`.
+
+### Pregunta vacía
+Una pregunta vacía o de solo espacios la rechaza el nodo `router` con `falta_contexto` y `idioma = "es"`, sin llamar al LLM.
 
 ## Respuesta final (`RespuestaAgente`)
 
@@ -73,9 +81,11 @@ Redacta, en el idioma de la pregunta, una respuesta breve según `motivo_rechazo
 | `respuesta` | str | Texto para el usuario |
 | `ruta` | str | Ruta elegida (se muestra en la UI) |
 | `sql_ejecutado` | str \| null | Consulta ejecutada (RF-011) |
-| `fuentes_documentales` | list[{`documento`, `pagina`}] | Documentos y páginas citados (RF-011) |
+| `fuentes_documentales` | list[{`documento`, `pagina`}] | Solo los fragmentos que la síntesis marcó como respaldo, sin repetir documento y página (RF-011) |
 | `idioma` | str | |
 | `duracion_ms` | int | |
+| `motivo_rechazo` | str \| null | Motivo si la ruta fue `rechazar` |
+| `fuentes_usadas` | `"sql"` \| `"rag"` \| `"ambas"` \| `"ninguna"` | Según lo que se ejecutó |
 
 ## Registro del recorrido (RF-012)
 

@@ -71,11 +71,21 @@ Abrir la URL que indica la consola y probar:
 
 **Resultado esperado**: en todos los casos el origen es visible sin herramientas externas (CE-006) y no aparecen mensajes técnicos internos.
 
+### Probar una pregunta desde la consola
+
+```bash
+python -c "from gym_agent.graph import run_question; print(run_question('¿Cuántos socios tiene cada plan?').model_dump_json(indent=2))"
+```
+
+Devuelve la respuesta, la ruta, el SQL ejecutado y las fuentes documentales; cada pregunta deja una línea en `logs/traza.jsonl`.
+
 ## 6. Observabilidad
 
 ```bash
 docker compose --profile observability up -d
 ```
+
+Esperar a que http://localhost:6006/ responda antes de preguntar. Para bajar solo Phoenix usar `docker compose stop phoenix`: `docker compose --profile observability down` baja también la base.
 
 Abrir http://localhost:6006 y hacer una pregunta: debe aparecer la traza con los nodos del grafo. Además, `logs/traza.jsonl` registra cada pregunta aunque Phoenix no esté levantado (RF-012).
 
