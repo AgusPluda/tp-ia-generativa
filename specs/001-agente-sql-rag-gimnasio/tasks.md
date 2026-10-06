@@ -313,3 +313,155 @@ Después de ambas:   T051 → T052 → T053 → T054
 2. **Validar con el LLM real pronto** (T044): es el riesgo principal de la etapa (SQL incorrecto para "último mes" o "no asistió"); si falla, se ajusta el glosario antes de construir el grafo encima.
 3. **No ajustar el umbral de la RAG** en esta etapa (T050): se calibra en la Etapa 4 con la batería completa; ahora solo se verifica que filtra lo evidentemente fuera de dominio.
 4. **No pasar a la Etapa 2** hasta cerrar T052.
+
+---
+---
+
+# Etapa 2: Agente (grafo, router, síntesis y trazas)
+
+**Alcance**: el grafo LangGraph de [contracts/agent-graph.md](contracts/agent-graph.md) (`router` → `sql` y/o `rag` → `sintetizar`, más `rechazar`), el registro del recorrido en `logs/traza.jsonl` y, si está activo, en Phoenix. El grafo importa **solo** `gym_agent.tools`. La interfaz es la Etapa 3 y la batería completa la Etapa 4. Fecha objetivo: 10/10/2026. Continúa la numeración de fases y tareas de la Etapa 1.
+
+**Historias que habilita**: Historia 4 (`[US4]`, router y rechazo; también enruta las Historias 1 a 3), Historias 1 a 3 (`[US1]`, `[US2]`, `[US3]`, SQL, RAG e híbridas a través del grafo) e Historia 5 (`[US5]`, registro del recorrido y fuentes visibles). Las fases son secuenciales porque comparten `prompts.py`, `nodes.py` y `builder.py`.
+
+**Tests**: unitarios sin LLM ni base (nodos y grafo con funciones falsas) e integración con LLM (marcador `llm`). Escribir los tests de cada fase antes de la implementación y verificar que fallan.
+
+**Decisiones de diseño de la etapa** (para que no queden al criterio de quien implementa):
+
+- **Inyección de dependencias**: `construir_grafo(*, clasificar, consultar, buscar, sintetizar)` recibe cuatro funciones. Por defecto son `clasificar_llm`, `gym_agent.tools.consultar`, `gym_agent.tools.buscar` y `sintetizar_llm`; los tests unitarios pasan versiones falsas y comprueban cuáles se llamaron.
+- **El router es el único que rechaza los pedidos de modificación** (research R14, "Pendiente para la Etapa 2"): con "Borrá todos los pagos vencidos" el LLM de la SQL tool no escribe un `DELETE`, devuelve un `SELECT` y `consultar` responde `ok = True`. Si el router lo enruta a `sql`, nadie lo rechaza. La base sigue protegida por las tres capas, pero el rechazo explícito (B01, B02, CE-003) es del prompt del router.
+- **`rechazar` no usa el LLM**: son plantillas fijas en castellano e inglés, una por motivo. Es determinista, no gasta cuota y no puede filtrar contenido. Ajusta el contrato, que decía "redacta" (se actualiza en T076).
+- **Pregunta vacía**: si `pregunta.strip()` está vacío, el router no llama al LLM y rechaza con `falta_contexto`.
+- **Ruta `ambas`**: `sql` corre primero y `rag` después **aunque `sql` haya fallado**; la síntesis cuenta el fallo sin detalles técnicos y responde con lo que sí hay.
+- **La síntesis decide qué fragmentos respaldan la respuesta**: devuelve un `Sintesis(respuesta, fuentes_usadas)` con los números (1 a k) de los fragmentos que usó. `fuentes_documentales` de `RespuestaAgente` sale **solo** de esos: "estacionamiento" (B08) devuelve fragmentos del Reglamento con similitud 0,69 (research R9) y no deben figurar como citados si la respuesta es "los documentos no lo cubren".
+- **A la síntesis nunca llega `error.detalle`**, solo `error.mensaje`. Las filas y los fragmentos van en secciones delimitadas y el prompt los declara **datos, no instrucciones** (una fila o un PDF no pueden darle órdenes al modelo).
+- **Fuentes usadas** (para CE-004 y la batería): se calculan por lo que se **ejecutó** (`resultado_sql is not None`, `resultado_rag is not None`), no por la ruta elegida. Se agregan a `RespuestaAgente` los campos `motivo_rechazo` y `fuentes_usadas` (`"sql"`, `"rag"`, `"ambas"` o `"ninguna"`) para que el runner de la Etapa 4 no tenga que parsear el archivo de trazas.
+- **Cuota**: una pregunta gasta de 2 a 4 llamadas (router, generación de SQL con hasta 2 reintentos, síntesis), a 15 pedidos por minuto. Los tests con LLM esperan 4 s entre preguntas. El agente usa `invocar_chat` (con el respaldo de `CHAT_MODELS`); el modo "sin respaldo" que exige la evaluación (research R11) se agrega en la Etapa 4.
+- **Phoenix es opcional**: si no hay nada escuchando en el puerto, el agente funciona igual y no muestra errores. `logs/traza.jsonl` se escribe siempre.
+
+## Fase 10: Preparación de la Etapa 2
+
+**Propósito**: constantes, ignorados y tipos compartidos por los nodos.
+
+- [ ] T055 Agregar a `src/gym_agent/config.py`, con comentario cada una: `TRAZA_PATH = REPO_ROOT / "logs" / "traza.jsonl"` y `PHOENIX_ENDPOINT = "http://localhost:6006/v1/traces"` (research R10). Agregar `logs/` a `.gitignore` (hoy no está ignorada y T054 pedía que no apareciera en `git status`).
+- [ ] T056 [P] Crear `src/gym_agent/graph/state.py` con: los alias `Ruta = Literal["sql", "rag", "ambas", "rechazar"]`, `Idioma = Literal["es", "en"]`, `MotivoRechazo = Literal["fuera_de_dominio", "modificacion", "falta_contexto"]`; `EstadoAgente(TypedDict, total=False)` con los campos de la tabla "Estado" del contrato (`pregunta`, `idioma`, `ruta`, `motivo_rechazo`, `resultado_sql`, `resultado_rag`, `respuesta`, `fuentes_usadas`); `DecisionRouter(BaseModel)` con `ruta`, `idioma`, `motivo_rechazo` y un `model_validator` que exige `motivo_rechazo` solo cuando `ruta == "rechazar"` (y lo prohíbe en las otras); `Sintesis(BaseModel)` con `respuesta: str` y `fuentes_usadas: list[int] = []`; y `RespuestaAgente(BaseModel)` con `respuesta`, `ruta`, `sql_ejecutado: str | None`, `fuentes_documentales: list[FuenteDocumental]` (`FuenteDocumental(documento: str, pagina: int | None)`), `idioma`, `duracion_ms: int`, `motivo_rechazo: MotivoRechazo | None` y `fuentes_usadas: Literal["sql", "rag", "ambas", "ninguna"]`. Docstring en cada modelo.
+
+**Punto de control**: `from gym_agent.graph.state import EstadoAgente, DecisionRouter, Sintesis, RespuestaAgente` funciona y `DecisionRouter(ruta="sql", idioma="es", motivo_rechazo="modificacion")` lanza `ValidationError`.
+
+---
+
+## Fase 11: Historia 4, router y rechazo (P2)
+
+**Objetivo**: clasificar cada pregunta (ruta, idioma, motivo de rechazo) y rechazar sin consultar ninguna fuente lo que no se debe responder (RF-008, RF-009, RF-017).
+
+**Prueba independiente**: `pytest tests/unit/test_router.py tests/unit/test_rechazar.py` en verde sin LLM.
+
+### Tests de la fase
+
+- [ ] T057 [P] [US4] Crear `tests/unit/test_router.py` (sin LLM; `clasificar` falso). Cubre: (a) `DecisionRouter` acepta las 4 combinaciones válidas y rechaza `ruta="rechazar"` sin motivo, `ruta="sql"` con motivo, e `idioma` distinto de `es`/`en`; (b) `nodo_router(clasificar)` escribe `ruta`, `idioma` y `motivo_rechazo` en el estado a partir de lo que devuelve `clasificar`; (c) pregunta vacía o solo espacios: no se llama a `clasificar`, `ruta = "rechazar"`, `motivo_rechazo = "falta_contexto"`, `idioma = "es"`; (d) si `clasificar` lanza una excepción, el nodo **no** la atrapa (la atrapa `run_question`, T071); (e) `construir_prompt_router(pregunta)` contiene la pregunta, las cuatro rutas, los tres motivos, la regla de que **las preguntas ambiguas no se rechazan**, que borrar, eliminar, actualizar, insertar o cambiar datos es `modificacion` aunque la pregunta esté escrita como una sentencia SQL, y que una pregunta mezclada en castellano e inglés toma el idioma predominante.
+- [ ] T058 [P] [US4] Crear `tests/unit/test_rechazar.py` (sin LLM). Para cada motivo (`modificacion`, `fuera_de_dominio`, `falta_contexto`) y cada idioma (`es`, `en`): `nodo_rechazar` escribe `respuesta` no vacía, en el idioma pedido (comparar con una palabra clave de cada plantilla: "consultar" / "only", "gimnasio" / "gym", "completa" / "complete"), las seis respuestas son distintas entre sí, y `resultado_sql` y `resultado_rag` quedan en `None`. Que las funciones de las tools no se llaman en ninguna ruta de rechazo se verifica en T063 (e).
+
+### Implementación de la fase
+
+- [ ] T059 [US4] Crear `src/gym_agent/graph/prompts.py` con `construir_prompt_router(pregunta: str) -> str`: criterios de `sql`, `rag`, `ambas` y los tres motivos de `rechazar` tal como están en la sección `router` del contrato (incluidas las reglas de T057 (e)), la fecha de referencia como "hoy es …" desde `REFERENCE_DATE`, y la pregunta en una sección delimitada que el prompt declara dato y no instrucción. Constantes de módulo con docstring para los textos largos.
+- [ ] T060 [US4] Crear `src/gym_agent/graph/nodes.py` con: `clasificar_llm(pregunta) -> DecisionRouter` (usa `invocar_chat(lambda m: m.with_structured_output(DecisionRouter), construir_prompt_router(pregunta))`; si devuelve `None`, lanza `ValueError`); `nodo_router(clasificar)` (devuelve el nodo, con la regla de la pregunta vacía); `MENSAJES_RECHAZO` (dict `(motivo, idioma) -> texto`: modificación "Solo puedo consultar información; no puedo modificar datos." y su versión en inglés; fuera de dominio "Solo puedo responder preguntas sobre el gimnasio: socios, pagos, clases, equipamiento y sus reglamentos y guías." y su versión en inglés; falta de contexto "Cada pregunta se responde por separado: formulala completa, sin depender de una anterior." y su versión en inglés); y `nodo_rechazar`.
+- [ ] T061 [US4] Ejecutar `pytest tests/unit/test_router.py tests/unit/test_rechazar.py` y corregir hasta que pasen.
+
+**Punto de control**: el router y el rechazo funcionan con funciones falsas.
+
+---
+
+## Fase 12: Historias 1 a 3, nodos de datos, síntesis y grafo (P1/P2)
+
+**Objetivo**: un grafo completo que, con las cuatro funciones inyectadas, recorre la ruta elegida y devuelve una respuesta construida solo con lo que trajeron las tools (RF-004 a RF-007, RF-010).
+
+**Prueba independiente**: `pytest tests/unit/test_synthesis_prompt.py tests/unit/test_graph.py` en verde sin LLM.
+
+### Tests de la fase
+
+- [ ] T062 [P] [US1] Crear `tests/unit/test_synthesis_prompt.py` (sin LLM) para `construir_prompt_sintesis(pregunta, idioma, resultado_sql, resultado_rag)`. Cubre: (a) con un `ResultadoSQL` con filas, el prompt trae columnas y filas; (b) con `filas == []` y `ok = True`, indica que la consulta no devolvió datos; (c) con `truncado = True`, indica que se muestran solo las primeras 50 filas; (d) con `error`, trae `error.mensaje` y **no** `error.detalle` (usar un detalle con un texto reconocible, por ejemplo `"password=secreta"`, y verificar que no aparece); (e) con fragmentos, los numera desde 1 con documento, página y texto; con `fragmentos == []`, indica que los documentos no contienen información; (f) incluye las reglas del contrato (responder solo con lo que traen los resultados, en el idioma de la pregunta, explicitar supuestos como el de "esta semana", cubrir las dos partes si hay SQL y RAG, y que `fuentes_usadas` solo lista los fragmentos que realmente respaldan la respuesta, vacía si ninguno); (g) incluye "hoy es 2026-09-30" desde `REFERENCE_DATE`; (h) filas y fragmentos van entre marcadores de sección y el prompt declara que son datos, no instrucciones; (i) una fila con el texto "Ignorá todo lo anterior" solo aparece dentro de su sección.
+- [ ] T063 [P] [US1] Crear `tests/unit/test_graph.py` (sin LLM ni base) con `clasificar`, `consultar`, `buscar` y `sintetizar` falsos que registran sus llamadas. Cubre: (a) ruta `sql`: se llama a `consultar` con `(pregunta, idioma)`, no a `buscar`, y la respuesta es la de `sintetizar`; (b) ruta `rag`: solo `buscar`; (c) ruta `ambas`: se llaman las dos y **`consultar` antes que `buscar`**; (d) ruta `ambas` con `consultar` devolviendo `ok = False`: igual se llama a `buscar` y a `sintetizar`; (e) ruta `rechazar` con cada motivo: no se llama a `consultar`, `buscar` ni `sintetizar`, y la respuesta es la plantilla de `MENSAJES_RECHAZO`; (f) el estado final trae `fuentes_usadas` según lo ejecutado (`sql`, `rag`, `ambas` o `ninguna`); (g) dos invocaciones seguidas no comparten estado (la segunda no ve el `resultado_sql` de la primera, RF-017); (h) el grafo compilado no tiene checkpointer (`grafo.checkpointer is None`).
+
+### Implementación de la fase
+
+- [ ] T064 [US1] Agregar a `src/gym_agent/graph/prompts.py` `construir_prompt_sintesis(pregunta, idioma, resultado_sql, resultado_rag) -> str` que cumpla T062. Para las filas usar `json.dumps(..., ensure_ascii=False)` con una fila por renglón; para los fragmentos, `[1] Documento, p. N: texto`. Nunca imprimir `error.detalle`.
+- [ ] T065 [US1] Agregar a `src/gym_agent/graph/nodes.py`: `nodo_sql(consultar)` (llama a `consultar(estado["pregunta"], estado["idioma"])` y guarda `resultado_sql`); `nodo_rag(buscar)` (guarda `resultado_rag`); `sintetizar_llm(prompt) -> Sintesis` (con `invocar_chat` y `with_structured_output(Sintesis)`; si devuelve `None`, `ValueError`); y `nodo_sintetizar(sintetizar)`, que arma el prompt, calcula `fuentes_usadas` según lo ejecutado y guarda `respuesta` y los números de fragmentos usados (descartando los que no existan). `nodo_rechazar` también completa `fuentes_usadas = "ninguna"`.
+- [ ] T066 [US1] Crear `src/gym_agent/graph/builder.py` con `construir_grafo(*, clasificar=clasificar_llm, consultar=..., buscar=..., sintetizar=sintetizar_llm)` que arma y compila el `StateGraph(EstadoAgente)` del diagrama del contrato: `router` → arista condicional según `ruta` (`sql`, `rag`, `rechazar`; `ambas` entra por `sql`) → después de `sql`, `rag` si `ruta == "ambas"` y `sintetizar` si no → `sintetizar` → `END`; `rechazar` → `END`. Sin checkpointer. Importar las tools desde `gym_agent.tools`, nunca desde sus módulos internos.
+- [ ] T067 [US1] Ejecutar `pytest tests/unit/test_synthesis_prompt.py tests/unit/test_graph.py` y, junto con T061, `pytest tests/unit`; corregir hasta que pasen.
+
+**Punto de control**: el grafo recorre las cuatro rutas con funciones falsas y ninguna ruta de rechazo toca las tools.
+
+---
+
+## Fase 13: Historia 5, `run_question` y registro del recorrido (P3)
+
+**Objetivo**: un único punto de entrada que nunca lanza excepciones, devuelve la respuesta con su origen visible y deja el recorrido registrado (RF-011, RF-012, CE-006).
+
+**Prueba independiente**: `pytest tests/unit/test_observability.py tests/unit/test_run_question.py` en verde sin LLM.
+
+### Tests de la fase
+
+- [ ] T068 [P] [US5] Crear `tests/unit/test_observability.py` (sin LLM; escribir en `tmp_path`). Para `registrar_traza(estado, respuesta, ruta_archivo)`: (a) agrega **una** línea JSON por llamada, con las claves del ejemplo del contrato (`timestamp`, `pregunta`, `idioma`, `ruta`, `motivo_rechazo`, `sql_ejecutado`, `filas_devueltas`, `sql_error`, `fragmentos`, `respuesta`, `duracion_ms`) y `fuentes_usadas`; (b) dos llamadas dejan dos líneas y el archivo se lee línea a línea con `json.loads`; (c) crea la carpeta si no existe; (d) `sql_error` es el **código** (`"TIMEOUT"`) y nunca el `detalle`; (e) `fragmentos` trae documento, página y similitud, sin el texto; (f) con `resultado_sql = None` y `resultado_rag = None` las claves están con `null` y `[]`; (g) si no se puede escribir (ruta inválida), no lanza excepción. Para `iniciar_phoenix()`: (h) sin nada escuchando en el endpoint (puerto sin servicio), no lanza excepción, devuelve `False` y no tarda más de 2 s; (i) llamarla dos veces no registra dos veces.
+- [ ] T069 [P] [US5] Crear `tests/unit/test_run_question.py` (sin LLM; grafo con funciones falsas pasado con `grafo=`). Cubre: (a) `run_question` devuelve `RespuestaAgente` con `ruta`, `idioma`, `sql_ejecutado` (el `sql_ejecutado` del resultado), `fuentes_documentales` (solo los fragmentos citados por la síntesis, sin duplicados de documento y página), `duracion_ms >= 0`, `motivo_rechazo` y `fuentes_usadas`; (b) si un nodo lanza `RuntimeError("clave=secreta")`, `run_question` no lanza, devuelve un mensaje genérico de "servicio no disponible" que **no** contiene el texto de la excepción, y el detalle queda en la traza; (c) si el LLM agota la cuota (excepción con `PerDay`), también devuelve el mensaje genérico; (d) toda pregunta, con éxito o con falla, deja una línea en la traza (parchear `TRAZA_PATH`); (e) el mensaje genérico está en el idioma de la pregunta cuando el router llegó a clasificarla y en castellano si no; (f) con una pregunta vacía devuelve el rechazo `falta_contexto` sin llamar a nada.
+
+### Implementación de la fase
+
+- [ ] T070 [US5] Crear `src/gym_agent/observability.py` con `registrar_traza(estado, respuesta, ruta_archivo=TRAZA_PATH)` (una línea JSON con `ensure_ascii=False`, con `timestamp` UTC real en ISO 8601, que es un dato de registro y no usa `REFERENCE_DATE`; nunca lanza excepciones) e `iniciar_phoenix(endpoint=PHOENIX_ENDPOINT) -> bool` (comprueba con un `socket` de 1 s que haya algo escuchando; si lo hay, registra el tracer de `phoenix.otel` y activa `LangChainInstrumentor`; si no, devuelve `False` sin ruido; idempotente). Docstring del módulo explicando que el archivo es la fuente para el informe y para la evaluación y que Phoenix es un extra.
+- [ ] T071 [US5] Agregar a `src/gym_agent/graph/builder.py` `run_question(pregunta: str, *, grafo=None) -> RespuestaAgente`: mide el tiempo, invoca el grafo (por defecto uno construido una vez y reutilizado), arma `RespuestaAgente` (con `fuentes_documentales` desde los números de `Sintesis`), registra la traza y devuelve. Todo el cuerpo va dentro de un `try` que atrapa `Exception`: ante una falla devuelve el mensaje genérico ("En este momento no puedo responder. Probá de nuevo en unos minutos." y su versión en inglés) y registra el `detalle` en la traza. Llamar a `iniciar_phoenix()` la primera vez. Crear `src/gym_agent/graph/__init__.py` exportando solo `run_question` y `RespuestaAgente`.
+- [ ] T072 [US5] Ejecutar `pytest tests/unit/test_observability.py tests/unit/test_run_question.py`; después levantar Phoenix (`docker compose --profile observability up -d`), correr una pregunta con `run_question` y confirmar a mano en `http://localhost:6006` que aparece la traza con las llamadas al LLM y a las tools; bajar Phoenix (`docker compose --profile observability down`) y confirmar que `run_question` sigue funcionando. Anotar el resultado en [research.md](research.md) (R10).
+
+**Punto de control**: `run_question` nunca lanza, cada pregunta deja una línea en `logs/traza.jsonl` y el agente funciona con Phoenix apagado.
+
+---
+
+## Fase 14: Validación con el LLM real y cierre de la Etapa 2
+
+**Propósito**: comprobar con Gemini que el router elige bien la ruta en las 26 preguntas de la batería y que el agente responde de punta a punta.
+
+- [ ] T073 [P] [US4] Crear `tests/integration/test_router_llm.py` con `@pytest.mark.llm`: `parametrize` con las 26 preguntas de [contracts/eval-battery.md](contracts/eval-battery.md) y su ruta esperada (S01 a S07: `sql`; R01 a R05: `rag`; H01 a H04: `ambas`; B01 y B02: `rechazar` con `modificacion`; B03: `rechazar` con `fuera_de_dominio`; B04: `sql`; B05 y B07: cualquier ruta distinta de `rechazar`; B06: `rechazar` con `falta_contexto`; B08: `rag`; B09: `sql` con idioma `es`; B10: `sql`, porque quien lo rechaza es la SQL tool con `FUERA_DE_ESQUEMA`) e idioma esperado (S04: `en`; el resto `es`). Solo llama a `clasificar_llm`, 1 llamada por pregunta, con una pausa de 4 s entre pruebas.
+- [ ] T074 [P] [US1] Crear `tests/integration/test_agente_llm.py` con `@pytest.mark.llm` (LLM y base reales; requiere ingesta y datos) con `run_question` para: S01 (la respuesta contiene los nombres de los planes y `sql_ejecutado` no es `None`); S04 (responde en inglés); R01 (`fuentes_documentales` incluye "Reglamento interno" y `sql_ejecutado` es `None`); H03 (`fuentes_usadas == "ambas"`, `sql_ejecutado` no es `None` y `fuentes_documentales` no está vacío); B01 (`ruta == "rechazar"`, `motivo_rechazo == "modificacion"`, `hash_tablas` idéntico antes y después, `sql_ejecutado is None`); B03 (`fuentes_usadas == "ninguna"`); B06 (`motivo_rechazo == "falta_contexto"`); B08 (la respuesta no inventa una política: `fuentes_documentales == []`); B10 (la respuesta no contiene el texto de ningún chunk de `rag.chunks`). Pausa de 4 s entre preguntas. Son pruebas de humo, no la evaluación: la batería completa y el juez son de la Etapa 4.
+- [ ] T075 [US4] Ejecutar `pytest -m llm tests/integration/test_router_llm.py tests/integration/test_agente_llm.py`; corregir los prompts de `src/gym_agent/graph/prompts.py` hasta que pasen (sin tocar los tests para acomodarlos, salvo que la expectativa esté mal fundada). Anotar en [research.md](research.md) (R15): qué preguntas fallaron, qué se cambió en el prompt y los resultados finales, en particular que B01 y B02 se rechazan en el router. Si una pregunta es inestable entre corridas (el 3.5 ignora la temperatura), correr la prueba 3 veces y anotar la tasa.
+- [ ] T076 Actualizar la documentación: [contracts/agent-graph.md](contracts/agent-graph.md) (`rechazar` con plantillas fijas y no LLM; `RespuestaAgente` con `motivo_rechazo` y `fuentes_usadas`; `fuentes_documentales` solo con los fragmentos que la síntesis marcó; ruta `ambas` con `sql` fallido; pregunta vacía; `fuentes_usadas` según lo ejecutado), [plan.md](plan.md) (decisión de diseño 1 con la inyección de dependencias) y [quickstart.md](quickstart.md) (cómo probar una pregunta desde la consola con `run_question`).
+- [ ] T077 Cierre: correr `pytest tests/unit tests/integration` (con la base) y `pytest -m llm`, todo en verde; confirmar con `hash_tablas` que la base no cambió; verificar con `grep` que `src/gym_agent/graph/` solo importa de `gym_agent.tools` (no de `sql_tool`, `rag_tool`, `sql_validator` ni `db`); confirmar que `git status` no muestra `logs/` ni `.env`; y marcar acá las tareas completadas.
+
+**Punto de control final de la Etapa 2**: `run_question` responde las 4 rutas con el LLM y la base reales, rechaza B01 y B02 en el router sin tocar la base, nunca lanza excepciones y deja cada recorrido en `logs/traza.jsonl`; la Etapa 3 (interfaz) puede empezar importando solo `gym_agent.graph`.
+
+---
+
+## Dependencias y orden de ejecución (Etapa 2)
+
+### Entre fases
+
+- **Fase 10**: requiere la Etapa 1 cerrada (T052). T055 y T056 son independientes.
+- **Fases 11, 12 y 13**: secuenciales (comparten `prompts.py`, `nodes.py` y `builder.py`). La Fase 11 necesita `state.py` (T056); la 12 necesita `nodo_rechazar` y `MENSAJES_RECHAZO` de la 11; la 13 necesita el grafo de la 12.
+- **Fase 14**: requiere las Fases 11 a 13, la clave de Gemini, la base y la ingesta.
+
+### Dentro de las fases
+
+- Fase 11: T057 y T058 en paralelo y antes de T059 a T061.
+- Fase 12: T062 y T063 en paralelo y antes de T064 a T067; T064 antes de T065; T065 antes de T066.
+- Fase 13: T068 y T069 en paralelo y antes de T070 y T071; T072 al final (requiere Docker).
+- Fase 14: T073 y T074 en paralelo; T075 requiere ambas.
+
+### Oportunidades de paralelismo
+
+```text
+Después de la Etapa 1:
+  T055 ∥ T056
+  T057 ∥ T058 → T059 → T060 → T061
+  T062 ∥ T063 → T064 → T065 → T066 → T067
+  T068 ∥ T069 → T070 → T071 → T072
+  T073 ∥ T074 → T075 → T076 → T077
+```
+
+## Estrategia de implementación (Etapa 2)
+
+1. **Router primero**: es la única defensa explícita contra los pedidos de modificación (CE-003) y lo que decide RF-006. Se prueba con funciones falsas antes de gastar cuota.
+2. **Sintetizar con el contrato de entrada cerrado**: el prompt solo recibe `mensaje`, nunca `detalle`, y los datos van delimitados. Esto se prueba sin LLM (T062).
+3. **Validar con el LLM real pronto** (T073): si el router clasifica mal una de las 26 preguntas, se ajusta el prompt antes de construir la interfaz y la evaluación encima.
+4. **No ajustar el umbral de la RAG** (sigue siendo de la Etapa 4); B08 se resuelve en la síntesis con `fuentes_usadas`.
+5. **No pasar a la Etapa 3** hasta cerrar T077.
+
+## Pendiente para la Etapa 4 (no es de esta etapa)
+
+- El runner debe fijar **un solo** modelo para el agente (sin respaldo) y usar `gemini-3.1-flash-lite` como juez, verificando que no coincidan (research R11); hace falta un modo "sin respaldo" en `llm.invocar_chat`.
+- Correr la batería 2 o 3 veces e informar la tasa de acierto por pregunta; pausa de ~4 s entre llamadas por el límite de 15 pedidos por minuto.
