@@ -27,6 +27,8 @@ class EstadoAgente(TypedDict, total=False):
     resultado_rag: ResultadoRAG | None
     respuesta: str
     fuentes_usadas: Literal["sql", "rag", "ambas", "ninguna"]
+    fragmentos_citados: list[int]
+    """Números (base 1) de los fragmentos de `resultado_rag` que respaldan la respuesta."""
 
 
 class DecisionRouter(BaseModel):
