@@ -58,7 +58,9 @@ pytest -m llm              # llama a Gemini: requiere GEMINI_API_KEY y la ingest
 streamlit run app/streamlit_app.py
 ```
 
-Abrir la URL que indica la consola y probar:
+Ejecutarlo siempre desde la raíz del repositorio (ahí se lee `.streamlit/config.toml`). **El navegador no se abre solo**: hay que abrir a mano la URL que imprime la consola (por defecto http://localhost:8501). Al arrancar se espera la página "Chat" en modo oscuro, con el título "🏋️ Gym AI Agent", tres ejemplos arriba del campo de pregunta y, en la barra lateral, las páginas "Chat" y "Preguntas evaluativas" y el link a Phoenix.
+
+Probar:
 
 | Pregunta | Se espera |
 |----------|-----------|

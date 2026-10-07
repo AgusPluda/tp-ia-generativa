@@ -121,6 +121,7 @@ src/gym_agent/
 ├── db.py                     # conexiones: admin (setup) y agente_ro (agente)
 ├── llm.py                    # fábricas de chat y embeddings (Gemini)
 ├── observability.py          # registro en Phoenix + traza JSONL
+├── presentacion.py           # lógica de la interfaz sin Streamlit: etiquetas, citas, escape, ejemplos, batería
 ├── synthetic/
 │   ├── catalog.py            # hechos compartidos entre base y PDFs (frecuencias, plazos)
 │   ├── data.py               # generación determinista de filas
@@ -141,7 +142,13 @@ src/gym_agent/
     ├── nodes.py
     └── builder.py            # construye y expone run_question(pregunta)
 
-app/streamlit_app.py
+.streamlit/config.toml        # tema oscuro, headless y sin telemetría (se ejecuta desde la raíz)
+app/
+├── streamlit_app.py          # entrada: navegación, logo y link a Phoenix
+├── logo.svg                  # título de la barra lateral
+└── paginas/
+    ├── chat.py               # página "Chat"
+    └── preguntas.py          # página "Preguntas evaluativas"
 eval/
 ├── battery.yaml              # las preguntas con sus chequeos
 ├── criteria.py               # cálculo de CE-001 a CE-004

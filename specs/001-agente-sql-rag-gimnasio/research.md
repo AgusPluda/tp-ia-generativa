@@ -135,7 +135,7 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
 - **Resultado final**: router 26 de 26 en 3 corridas seguidas (3 de 3). Agente de punta a punta (`test_agente_llm.py`, 9 pruebas de humo) 9 de 9; B01 y B02 se rechazan en el router sin tocar la base (`hash_tablas` idéntico) y B10 no vuelca ningún chunk.
 - **Error en un test, no en el prompt**: S01 buscaba nombres de plan que no existen en el catálogo (`Básico`, `Estándar`, `Premium`, `Estudiante`); se corrigió la expectativa.
 
-## R16. Interfaz Streamlit con el LLM real (Fase 17)
+## R16. Interfaz: decisiones y verificación (T087 a T089)
 
 - **Pruebas con `AppTest` y el LLM real** (`tests/integration/test_app_llm.py`, 2026-10-07): 6 de 6 (S01, R01, H02, B01 con `hash_tablas` idéntico, B03 y S04). Ningún elemento de la página contiene `Traceback`, `psycopg` ni `Exception`.
 - **Servidor sin navegador** (puerto 8599, entrada estándar cerrada, desde la raíz del repo):
@@ -146,7 +146,7 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
   - **Ajuste visual**: la consulta SQL, de una sola línea, se cortaba a la derecha; se agregó `wrap_lines=True` a `st.code`.
   - **Observación**: H02 tardó 48,4 s (las otras, de 1 a 11 s). Probablemente por reintentos o latencia del LLM; no se investigó. Pendiente de mirar en la Etapa 4 si afecta la evaluación.
 
-## R16b. Diseño de la interfaz (Fase 17b)
+## R16b. Interfaz: diseño y verificación (T092 a T097)
 
 - **Pruebas** (2026-10-07): `pytest tests/unit` 319 pasan; `pytest tests/integration/test_app_llm.py -m llm -k s01` pasa, así que `AppTest` funciona igual con `st.navigation` (la página por defecto es Chat y el parche de `run_question` se sigue viendo).
 - **`AppTest` y la navegación**: `at.switch_page("paginas/preguntas.py")` funciona. `link_button` aparece en `at.sidebar.get("link_button")` como `UnknownElement`, pero su `proto.url` y `proto.label` son legibles, así que el test verifica la URL y la etiqueta.

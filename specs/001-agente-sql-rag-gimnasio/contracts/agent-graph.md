@@ -86,6 +86,7 @@ Una pregunta vacía o de solo espacios la rechaza el nodo `router` con `falta_co
 | `duracion_ms` | int | |
 | `motivo_rechazo` | str \| null | Motivo si la ruta fue `rechazar` |
 | `fuentes_usadas` | `"sql"` \| `"rag"` \| `"ambas"` \| `"ninguna"` | Según lo que se ejecutó |
+| `fallo` | bool | `true` solo cuando `run_question` atrapó una excepción y devolvió el mensaje genérico; la UI lo distingue de un rechazo (por defecto `false`) |
 
 ## Registro del recorrido (RF-012)
 
