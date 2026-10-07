@@ -1,0 +1,7 @@
+# Streamlit se ejecuta siempre desde la raíz del repositorio, donde lee este archivo.
+# Sin esto, la primera ejecución puede quedarse esperando un correo electrónico por consola.
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = false
