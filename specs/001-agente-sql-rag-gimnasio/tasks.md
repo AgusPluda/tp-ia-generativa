@@ -497,6 +497,7 @@ Después de la Etapa 1:
 | 15. Base para la UI | T078 a T082 | Campo `fallo` en `RespuestaAgente`; `presentacion.py` con sus tests | Sonnet 5.5 | medium | Código corto y bien delimitado; el cuidado está en el escape de `$` y en no romper los tests de `run_question` |
 | 16. App Streamlit | T083 a T086 | Tests con `AppTest`, configuración de Streamlit y `app/streamlit_app.py` | Sonnet 5.5 | high | La parte difícil es la API de `AppTest` y de los formularios (claves, `session_state` en `on_click`, `st.form`); conviene razonar a fondo antes de escribir los tests |
 | 17. Validación real | T087 a T089 | Pruebas con LLM real vía `AppTest`, servidor sin cabeza, revisión visual | Sonnet 5.5 | medium | Sobre todo ejecutar y diagnosticar; si una pregunta falla por el prompt, el ajuste es pequeño |
+| 17b. Diseño de la interfaz | T092 a T097 | Tema oscuro, título, fila de ejemplos, navegación con "Chat" y "Preguntas evaluativas", link a Phoenix | Sonnet 5.5 | medium | Sin lógica de negocio; el cuidado está en que `AppTest` siga funcionando con `st.navigation` y en el parseo del markdown de la batería |
 | 18. Cierre | T090 y T091 | Documentación (ui.md, agent-graph.md, plan, quickstart, research R16) y verificación final | Sonnet 5.5 | low | Edición de texto y comprobaciones mecánicas; Haiku 4.5 alcanza si solo hay que ajustar texto, pero Sonnet evita errores en los contratos |
 
 Ninguna fase de esta etapa justifica Opus: no hay diseño de seguridad nuevo ni prompts que calibrar. Si en la Fase 17 una pregunta falla por una decisión del router o de la síntesis, se resuelve en `prompts.py` como en la Etapa 2 (T075) y ahí sí conviene subir a Opus con effort high solo para esa corrección.
@@ -550,11 +551,44 @@ Ninguna fase de esta etapa justifica Opus: no hay diseño de seguridad nuevo ni 
 
 **Propósito**: comprobar con Gemini y la base reales que la interfaz muestra el origen de cada respuesta (CE-006) y que `streamlit run` arranca en un entorno limpio.
 
-- [ ] T087 [P] [US1] Crear `tests/integration/test_app_llm.py` con `@pytest.mark.llm` (LLM, base e ingesta reales): la misma técnica de `AppTest` de T083, **sin** parchear `run_question` y con `default_timeout=90`. Pausa de 4 s entre pruebas. Cubre: S01 (caption "Fuente: Base de datos", desplegable "Consulta SQL ejecutada" con un `st.code` que empieza con `SELECT` o `WITH`, sin "Documentos citados"); R01 (caption "Fuente: Documentos", "Documentos citados" incluye "Reglamento interno", sin desplegable SQL); H02 (caption "Fuente: Ambas" y los dos desplegables); B01 (caption "Fuente: Rechazada", sin desplegables y `hash_tablas` con `conn_admin` idéntico antes y después); B03 (caption "Fuente: Rechazada"); S04 (la respuesta contiene "member"). En todas, ningún elemento de la página contiene `Traceback`, `psycopg` ni `Exception`. Son pruebas de humo: la batería completa es de la Etapa 4.
-- [ ] T088 [US1] Prueba del servidor sin navegador: desde la raíz del repo, con la entrada estándar cerrada, ejecutar en segundo plano `.venv/Scripts/streamlit run app/streamlit_app.py --server.port 8599 --server.headless true`, esperar a que `http://localhost:8599/_stcore/health` responda `ok`, y detener el proceso (por su PID). Repetir **sin** `--server.headless true` y con la entrada cerrada (`< /dev/null`) para comprobar que, con `.streamlit/config.toml`, no se queda esperando un correo y el servidor responde `ok`. Anotar el resultado y el ajuste que hizo falta, si hubo, en [research.md](research.md) (R16).
-- [ ] T089 [US5] Revisión visual de las seis preguntas de la tabla de [quickstart.md](quickstart.md#5-aplicación) en un navegador: la ruta, el SQL y los documentos son visibles sin herramientas externas, el rechazo no muestra consulta, las respuestas en inglés salen en inglés y nunca aparece un mensaje técnico. Si la sesión dispone de una herramienta de navegador (Playwright), usarla con capturas de pantalla; si no, esta tarea la hace la persona y se deja anotado en research R16 que quedó pendiente de revisión manual. Ejecutarla con la base y la clave reales; consume cuota de la API.
+- [X] T087 [P] [US1] Crear `tests/integration/test_app_llm.py` con `@pytest.mark.llm` (LLM, base e ingesta reales): la misma técnica de `AppTest` de T083, **sin** parchear `run_question` y con `default_timeout=90`. Pausa de 4 s entre pruebas. Cubre: S01 (caption "Fuente: Base de datos", desplegable "Consulta SQL ejecutada" con un `st.code` que empieza con `SELECT` o `WITH`, sin "Documentos citados"); R01 (caption "Fuente: Documentos", "Documentos citados" incluye "Reglamento interno", sin desplegable SQL); H02 (caption "Fuente: Ambas" y los dos desplegables); B01 (caption "Fuente: Rechazada", sin desplegables y `hash_tablas` con `conn_admin` idéntico antes y después); B03 (caption "Fuente: Rechazada"); S04 (la respuesta contiene "member"). En todas, ningún elemento de la página contiene `Traceback`, `psycopg` ni `Exception`. Son pruebas de humo: la batería completa es de la Etapa 4.
+- [X] T088 [US1] Prueba del servidor sin navegador: desde la raíz del repo, con la entrada estándar cerrada, ejecutar en segundo plano `.venv/Scripts/streamlit run app/streamlit_app.py --server.port 8599 --server.headless true`, esperar a que `http://localhost:8599/_stcore/health` responda `ok`, y detener el proceso (por su PID). Repetir **sin** `--server.headless true` y con la entrada cerrada (`< /dev/null`) para comprobar que, con `.streamlit/config.toml`, no se queda esperando un correo y el servidor responde `ok`. Anotar el resultado y el ajuste que hizo falta, si hubo, en [research.md](research.md) (R16).
+- [X] T089 [US5] Revisión visual de las seis preguntas de la tabla de [quickstart.md](quickstart.md#5-aplicación) en un navegador: la ruta, el SQL y los documentos son visibles sin herramientas externas, el rechazo no muestra consulta, las respuestas en inglés salen en inglés y nunca aparece un mensaje técnico. Si la sesión dispone de una herramienta de navegador (Playwright), usarla con capturas de pantalla; si no, esta tarea la hace la persona y se deja anotado en research R16 que quedó pendiente de revisión manual. Ejecutarla con la base y la clave reales; consume cuota de la API.
 
 **Punto de control**: las pruebas con el LLM real pasan, `streamlit run` arranca sin pedir nada por consola y el origen de cada respuesta se ve en la pantalla.
+
+---
+
+## Fase 17b: Diseño de la interfaz
+
+**Propósito**: cambios puramente visuales y de navegación pedidos después de validar la app; no cambia la lógica de negocio ni lo que responde el agente. Se intercala antes del cierre para que la Fase 18 documente y verifique el diseño final. Los IDs continúan después de T091 para no renumerar.
+
+**Decisiones de la fase**:
+
+- **Tema**: oscuro con acento rojo, solo en `.streamlit/config.toml` (`[theme] base = "dark"`, `primaryColor = "#E53935"`).
+- **Título**: `st.title("🏋️ Gym AI Agent")`; pestaña del navegador con `page_title="Gym AI Agent"` y `page_icon="🏋️"`. El texto de ayuda sigue en castellano.
+- **Ejemplos**: una sola fila **arriba** del campo de pregunta (`st.caption("Probá con:")` y `st.columns(3)`), con etiquetas cortas ("Socios por plan", "Congelamiento de cuota", "Equipos en mantenimiento") y la pregunta completa como `help` (tooltip). Al hacer clic se carga la pregunta completa en el campo, sin enviarla. Las claves `ejemplo_0` a `ejemplo_2` no cambian.
+- **Navegación nativa** (`st.navigation` con `st.Page`), visible siempre en la barra lateral: "Chat" (página por defecto, la app actual) y "Preguntas evaluativas". Debajo de las páginas, tras un `st.sidebar.divider()`, un `st.sidebar.link_button("Observabilidad en Phoenix", url_phoenix())` y un `st.sidebar.caption` que aclara que requiere `docker compose --profile observability up -d`. No se usa CSS para fijarlo al borde inferior. El comando sigue siendo `streamlit run app/streamlit_app.py`: ese archivo arma la navegación y las páginas viven en `app/paginas/`.
+- **Preguntas evaluativas**: una sola página, con las cuatro secciones de [contracts/eval-battery.md](contracts/eval-battery.md) una debajo de la otra, como en el markdown: un `st.subheader` por sección con su cantidad ("Solo SQL (7)", "Solo RAG (5)", "Híbridas (4)", "Casos borde (10)") y una tabla markdown con ID, Pregunta y Chequeo principal (conserva el formato de código de los chequeos). Sin solapas ni páginas por tipo, y sin botón "Probar en el chat". La fuente es el markdown; en la Etapa 4, cuando exista `eval/battery.yaml`, se agrega un test que verifica que ambos tienen las mismas preguntas.
+- **Restricción de imports**: `app/` (incluidas las páginas) sigue importando solo `streamlit`, `gym_agent.graph` y `gym_agent.presentacion`; la lectura y el parseo del markdown van en `presentacion.py`.
+
+**Prueba independiente**: `pytest tests/unit` en verde y revisión visual con Playwright.
+
+### Tests de la fase
+
+> Escribirlos primero y verificar que fallan antes de implementar.
+
+- [ ] T092 [P] [US1] Actualizar `tests/unit/test_presentacion.py`: (a) `EJEMPLOS` pasa a ser una tupla de 3 `Ejemplo(etiqueta, pregunta)` (`NamedTuple`); las etiquetas son "Socios por plan", "Congelamiento de cuota" y "Equipos en mantenimiento", y las preguntas siguen siendo S01, R01 y H02 y aparecen literales en `eval-battery.md` (adaptar los tests existentes de T078 (d)); (b) `secciones_bateria() -> list[SeccionBateria]` (cada una con `titulo` y `preguntas: list[PreguntaBateria(id, pregunta, chequeo)]`) devuelve 4 secciones con los títulos "Solo SQL (7)", "Solo RAG (5)", "Híbridas (4)" y "Casos borde (10)", 7, 5, 4 y 10 preguntas (26 en total), IDs únicos, la primera es S01 con su texto exacto y B02 conserva `UPDATE socios SET estado = 'baja'`; (c) `tabla_markdown(preguntas)` arma una tabla con el encabezado `| ID | Pregunta | Chequeo principal |`, una fila por pregunta, escapa `$` y `|` dentro de las celdas y conserva las comillas invertidas; (d) `url_phoenix()` devuelve `http://localhost:6006` (se deriva de `PHOENIX_ENDPOINT` quitando la ruta, no se repite la URL).
+- [ ] T093 [P] [US1] Actualizar `tests/unit/test_streamlit_app.py` sin cambiar la técnica de T083: (a) el título es "🏋️ Gym AI Agent"; (b) los botones `ejemplo_0` a `ejemplo_2` muestran las etiquetas cortas y tienen como `help` la pregunta completa; al hacer clic, el campo `pregunta` vale la pregunta completa (no la etiqueta) y no se llama a `run_question`; (c) la página por defecto es Chat: todos los casos existentes (b) a (l) siguen pasando contra `app/streamlit_app.py`; (d) con `at.switch_page("paginas/preguntas.py").run()`: sin excepciones, 4 subtítulos con los títulos de T092 (b), los 26 IDs visibles en el markdown y `run_question` no se llamó; (e) la barra lateral tiene el botón "Observabilidad en Phoenix" con la URL de `url_phoenix()` y el caption con `docker compose --profile observability up -d`. Si `AppTest` no expone `link_button` en 1.65.0, buscarlo con `at.get("link_button")` o en `at.sidebar`; si tampoco se puede, la URL queda cubierta por T092 (d) y el botón por la revisión visual de T097 (dejarlo anotado en el test).
+
+### Implementación de la fase
+
+- [ ] T094 [P] [US1] Agregar a `.streamlit/config.toml` la sección `[theme]` con `base = "dark"` y `primaryColor = "#E53935"`, sin tocar `[browser]` ni `[server]`.
+- [ ] T095 [US1] Actualizar `src/gym_agent/presentacion.py` según T092: `Ejemplo`, `EJEMPLOS`, `PreguntaBateria`, `SeccionBateria`, `secciones_bateria()` (lee `REPO_ROOT / "specs/001-agente-sql-rag-gimnasio/contracts/eval-battery.md"`, toma las secciones `###` que están bajo "## Preguntas" y las filas de sus tablas), `tabla_markdown()` y `url_phoenix()`. Sigue sin importar `streamlit`, `gym_agent.tools` ni `gym_agent.db`.
+- [ ] T096 [US1] Reorganizar la app: `app/streamlit_app.py` pasa a ser la entrada (`st.set_page_config`, `st.navigation` con `st.Page("paginas/chat.py", title="Chat", icon="💬", default=True)` y `st.Page("paginas/preguntas.py", title="Preguntas evaluativas", icon="📋")`, el bloque de Phoenix en la barra lateral y `pagina.run()`); `app/paginas/chat.py` con el contenido actual del chat, el título nuevo y la fila de ejemplos arriba del formulario (`from gym_agent.graph import run_question` sigue dentro del script de la página, para que el parche de los tests se vea); `app/paginas/preguntas.py` con el título "Preguntas evaluativas", una línea de explicación (la batería con la que se evalúa el agente) y, por cada sección, `st.subheader` y `st.markdown(tabla_markdown(...))`. Docstring en cada archivo.
+- [ ] T097 [US1] Ejecutar `pytest tests/unit` y `pytest tests/integration/test_app_llm.py -m llm -k s01` (una sola pregunta, para confirmar que la técnica de `AppTest` sigue funcionando con la navegación sin gastar cuota de más); corregir hasta que pasen. Revisión visual con Playwright (servidor en el puerto 8599): modo oscuro con acento rojo, título con la mancuerna, fila de ejemplos arriba del campo con tooltip, barra lateral con las dos páginas y el link a Phoenix debajo, página de preguntas con las 4 secciones y una pregunta real en el chat. Anotar el resultado en research R16 y detener el servidor.
+
+**Punto de control**: la app se ve en modo oscuro, navega entre Chat y Preguntas evaluativas, los ejemplos no separan la respuesta del formulario y todos los tests siguen en verde.
 
 ---
 
@@ -562,8 +596,8 @@ Ninguna fase de esta etapa justifica Opus: no hay diseño de seguridad nuevo ni 
 
 **Propósito**: documentación al día y verificación final.
 
-- [ ] T090 Actualizar la documentación a lo implementado: [contracts/ui.md](contracts/ui.md) (etiqueta "No disponible" y `st.error` para `fallo`, escape de `$`, pregunta en blanco, claves de los widgets, que el SQL se muestra sin reformatear y que B08 no muestra desplegables); [contracts/agent-graph.md](contracts/agent-graph.md) (`RespuestaAgente.fallo`); [plan.md](plan.md) (`presentacion.py` y `.streamlit/config.toml` en la estructura del proyecto); [quickstart.md](quickstart.md) (sección 5: ejecutar siempre desde la raíz del repo y qué se espera al arrancar, y la lista de tests si cambió algún comando); y la sección R16 de [research.md](research.md) ("Interfaz: decisiones y verificación") con T087, T088 y T089.
-- [ ] T091 Cierre: correr `pytest tests/unit tests/integration` (con la base) y `pytest -m llm`, todo en verde; confirmar con `hash_tablas` que la base no cambió; verificar con `grep` que `app/` solo importa `streamlit`, `gym_agent.graph` y `gym_agent.presentacion`, y que `src/gym_agent/presentacion.py` no importa `streamlit`, `gym_agent.tools` ni `gym_agent.db`; confirmar que `git status` no muestra `logs/` ni `.env`; y marcar acá las tareas completadas.
+- [ ] T090 Actualizar la documentación a lo implementado: [contracts/ui.md](contracts/ui.md) (etiqueta "No disponible" y `st.error` para `fallo`, escape de `$`, pregunta en blanco, claves de los widgets, que el SQL se muestra sin reformatear y que B08 no muestra desplegables; y el diseño de la Fase 17b: tema oscuro, título, fila de ejemplos con etiquetas cortas, navegación con "Chat" y "Preguntas evaluativas", y el link a Phoenix); [contracts/agent-graph.md](contracts/agent-graph.md) (`RespuestaAgente.fallo`); [plan.md](plan.md) (`presentacion.py`, `app/paginas/` y `.streamlit/config.toml` en la estructura del proyecto); [quickstart.md](quickstart.md) (sección 5: ejecutar siempre desde la raíz del repo, que el navegador no se abre solo y hay que abrir la URL que imprime la consola, y qué se espera al arrancar, y la lista de tests si cambió algún comando); y la sección R16 de [research.md](research.md) ("Interfaz: decisiones y verificación") con T087, T088 y T089.
+- [ ] T091 Cierre: correr `pytest tests/unit tests/integration` (con la base) y `pytest -m llm`, todo en verde; confirmar con `hash_tablas` que la base no cambió; verificar con `grep` que `app/` (incluido `app/paginas/`) solo importa `streamlit`, `gym_agent.graph` y `gym_agent.presentacion`, y que `src/gym_agent/presentacion.py` no importa `streamlit`, `gym_agent.tools` ni `gym_agent.db`; confirmar que `git status` no muestra `logs/` ni `.env`; y marcar acá las tareas completadas.
 
 **Punto de control final de la Etapa 3**: la app responde las seis preguntas del quickstart mostrando ruta y origen, el rechazo y la falla se distinguen, nunca muestra mensajes técnicos y arranca con un solo comando desde la raíz; la Etapa 4 (evaluación) puede empezar importando solo `gym_agent.graph`.
 
@@ -576,13 +610,15 @@ Ninguna fase de esta etapa justifica Opus: no hay diseño de seguridad nuevo ni 
 - **Fase 15**: requiere la Etapa 2 cerrada (T077).
 - **Fase 16**: requiere la Fase 15 (usa `presentacion.py` y `fallo`).
 - **Fase 17**: requiere la Fase 16, la clave de Gemini, la base y la ingesta. T088 no necesita la clave.
-- **Fase 18**: requiere la Fase 17.
+- **Fase 17b**: requiere la Fase 17 (cambia el diseño de una app ya validada). T097 usa la clave de Gemini para una sola pregunta.
+- **Fase 18**: requiere la Fase 17b.
 
 ### Dentro de las fases
 
 - Fase 15: T078 y T079 en paralelo y antes de T080 y T081; T080 antes de T081 (usa `fallo`); T082 al final.
 - Fase 16: T083 y T084 en paralelo y antes de T085; T086 al final.
 - Fase 17: T087 y T088 en paralelo; T089 después de ambas.
+- Fase 17b: T092, T093 y T094 en paralelo; T095 después de T092; T096 después de T093, T094 y T095; T097 al final.
 - Fase 18: T090 antes de T091.
 
 ### Oportunidades de paralelismo
@@ -591,7 +627,9 @@ Ninguna fase de esta etapa justifica Opus: no hay diseño de seguridad nuevo ni 
 Después de la Etapa 2:
   T078 ∥ T079 → T080 → T081 → T082
   T083 ∥ T084 → T085 → T086
-  T087 ∥ T088 → T089 → T090 → T091
+  T087 ∥ T088 → T089
+  T092 ∥ T093 ∥ T094 → T095 → T096 → T097
+  T090 → T091
 ```
 
 ## Estrategia de implementación (Etapa 3)

@@ -134,3 +134,14 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
 - **Cambios en `CRITERIOS_ROUTER`** (`prompts.py`): (1) el código o las sentencias SQL y los nombres de tablas no cuentan para el idioma, y una oración en castellano con una palabra suelta en inglés es `es`; (2) pedir ver, listar o mostrar datos, aunque nombre una tabla interna, no es `modificacion` sino `sql`.
 - **Resultado final**: router 26 de 26 en 3 corridas seguidas (3 de 3). Agente de punta a punta (`test_agente_llm.py`, 9 pruebas de humo) 9 de 9; B01 y B02 se rechazan en el router sin tocar la base (`hash_tablas` idéntico) y B10 no vuelca ningún chunk.
 - **Error en un test, no en el prompt**: S01 buscaba nombres de plan que no existen en el catálogo (`Básico`, `Estándar`, `Premium`, `Estudiante`); se corrigió la expectativa.
+
+## R16. Interfaz Streamlit con el LLM real (Fase 17)
+
+- **Pruebas con `AppTest` y el LLM real** (`tests/integration/test_app_llm.py`, 2026-10-07): 6 de 6 (S01, R01, H02, B01 con `hash_tablas` idéntico, B03 y S04). Ningún elemento de la página contiene `Traceback`, `psycopg` ni `Exception`.
+- **Servidor sin navegador** (puerto 8599, entrada estándar cerrada, desde la raíz del repo):
+  - Con `--server.headless true`: `/_stcore/health` responde `ok` a los 2 s.
+  - **Ajuste necesario**: con `[server] headless = false` en `.streamlit/config.toml` (el valor previsto en T084) y sin la opción por consola, Streamlit imprime "Welcome to Streamlit! ... Email:" y espera un correo; el servidor no llega a escuchar y `health` no responde en 20 s. Con `gatherUsageStats = false` solo no alcanza. Se cambió a `headless = true`: arranca sin preguntar y `health` responde `ok` a los 2 s. Costo: Streamlit ya no abre el navegador; se abre a mano la URL que imprime la consola (el README debe decirlo).
+- **Revisión visual con Playwright** (6 preguntas del quickstart, base y clave reales; capturas en `.playwright-mcp/`, que no se versiona):
+  - Base de datos (S01), Documentos (R01, "Reglamento interno, p. 3") y Ambas (H02): etiqueta de fuente y desplegables correctos. Rechazadas (B01 y B03): etiqueta "Rechazada" y sin desplegables. S04: respuesta en inglés. Nunca apareció un mensaje técnico. Los ejemplos rellenan el campo y Enter envía la pregunta.
+  - **Ajuste visual**: la consulta SQL, de una sola línea, se cortaba a la derecha; se agregó `wrap_lines=True` a `st.code`.
+  - **Observación**: H02 tardó 48,4 s (las otras, de 1 a 11 s). Probablemente por reintentos o latencia del LLM; no se investigó. Pendiente de mirar en la Etapa 4 si afecta la evaluación.

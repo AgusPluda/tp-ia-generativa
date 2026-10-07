@@ -1,7 +1,9 @@
 # Streamlit se ejecuta siempre desde la raíz del repositorio, donde lee este archivo.
-# Sin esto, la primera ejecución puede quedarse esperando un correo electrónico por consola.
+# Con `headless = false` la primera ejecución se queda esperando un correo electrónico por
+# consola y el servidor no arranca (CE-005); con `true` no pregunta ni abre el navegador:
+# se abre a mano la URL que imprime la consola.
 [browser]
 gatherUsageStats = false
 
 [server]
-headless = false
+headless = true

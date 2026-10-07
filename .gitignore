@@ -41,3 +41,6 @@ Thumbs.db
 # Editores
 .idea/
 .vscode/
+
+# Capturas y snapshots del MCP de Playwright
+.playwright-mcp/

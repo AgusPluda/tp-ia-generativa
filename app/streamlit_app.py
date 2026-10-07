@@ -52,7 +52,7 @@ if enviado:
             st.caption(f"Fuente: {etiqueta_ruta(respuesta)}")
             if respuesta.sql_ejecutado is not None:
                 with st.expander("Consulta SQL ejecutada"):
-                    st.code(respuesta.sql_ejecutado, language="sql")
+                    st.code(respuesta.sql_ejecutado, language="sql", wrap_lines=True)
             citados = documentos_citados(respuesta)
             if citados:
                 with st.expander("Documentos citados"):
