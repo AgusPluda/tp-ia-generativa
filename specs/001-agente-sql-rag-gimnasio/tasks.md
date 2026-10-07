@@ -1,13 +1,13 @@
 ---
 
-description: "Tareas de la Etapa 0 (setup, completada) y de la Etapa 1 (tools SQL y RAG) del agente SQL + RAG para gimnasio"
+description: "Tareas de las Etapas 0 a 3 (setup, tools, agente e interfaz) del agente SQL + RAG para gimnasio"
 ---
 
 # Tareas: Agente conversacional SQL + RAG para gimnasio, Etapa 0 (Setup)
 
 **Entrada**: documentos de diseño en `specs/001-agente-sql-rag-gimnasio/` ([plan.md](plan.md), [spec.md](spec.md), [data-model.md](data-model.md), [research.md](research.md), [contracts/](contracts/), [quickstart.md](quickstart.md)).
 
-**Alcance de la Etapa 0**: solo la **Etapa 0** del plan (entorno, datos sintéticos deterministas, 3 PDFs sintéticos e ingesta a `rag.chunks`), completada. Fecha objetivo: 06/10/2026. La **Etapa 1** (tools SQL y RAG) está al final de este archivo, desde la Fase 6. Las etapas 2 a 5 se generan después con `/speckit-tasks`.
+**Alcance de la Etapa 0**: solo la **Etapa 0** del plan (entorno, datos sintéticos deterministas, 3 PDFs sintéticos e ingesta a `rag.chunks`), completada. Fecha objetivo: 06/10/2026. La **Etapa 1** (tools SQL y RAG) está al final de este archivo, desde la Fase 6. Las etapas 2 (agente) y 3 (interfaz) están más abajo; las etapas 4 y 5 se generan después con `/speckit-tasks`.
 
 **Tests**: el plan y el quickstart piden tests de invariantes de datos, determinismo (CE-007), chunking y rol de solo lectura (CE-003); por eso se incluyen. Ninguno llama al LLM salvo la tarea de humo T008.
 
@@ -465,3 +465,144 @@ Después de la Etapa 1:
 
 - El runner debe fijar **un solo** modelo para el agente (sin respaldo) y usar `gemini-3.1-flash-lite` como juez, verificando que no coincidan (research R11); hace falta un modo "sin respaldo" en `llm.invocar_chat`.
 - Correr la batería 2 o 3 veces e informar la tasa de acierto por pregunta; pausa de ~4 s entre llamadas por el límite de 15 pedidos por minuto.
+
+---
+---
+
+# Etapa 3: Interfaz (Streamlit)
+
+**Alcance**: la app de [contracts/ui.md](contracts/ui.md) (`app/streamlit_app.py`): campo de pregunta, respuesta, etiqueta de ruta, consulta SQL ejecutada y documentos citados visibles sin herramientas externas (RF-011, RF-013, CE-006), tres ejemplos que rellenan el campo y errores sin detalles técnicos. La app importa **solo** `gym_agent.graph` y `gym_agent.presentacion`; nunca las tools ni `db`. La batería y el runner son la Etapa 4. Fecha objetivo: 11/10/2026. Continúa la numeración de fases y tareas de la Etapa 2.
+
+**Historias que habilita**: Historia 5 (`[US5]`, origen de la respuesta visible) y Historia 1 (`[US1]`, preguntar y recibir la respuesta desde la interfaz); además deja visible el rechazo de la Historia 4 y las rutas de las Historias 2 y 3. Las fases son secuenciales: cada una usa lo que deja la anterior.
+
+**Tests**: unitarios sin LLM ni base (lógica de presentación y la app con `streamlit.testing.v1.AppTest` y un `run_question` falso) e integración con LLM (marcador `llm`, también con `AppTest`). Escribir los tests de cada fase antes de la implementación y verificar que fallan.
+
+**Decisiones de diseño de la etapa** (para que no queden al criterio de quien implementa):
+
+- **La lógica que no es de Streamlit va en `src/gym_agent/presentacion.py`** (etiquetas de ruta, formato de los documentos citados, escape del texto, ejemplos): se prueba sin servidor y no importa `streamlit`. El plan agrega ese archivo a la estructura (se actualiza en T090).
+- **Falla explícita en `RespuestaAgente`**: `run_question` ante una excepción devuelve `ruta = "rechazar"` (o la que alcanzó a calcular) con el mensaje genérico; la interfaz no puede distinguir eso de un rechazo real ni deducirlo comparando textos. Se agrega `fallo: bool = False` (`True` solo en la rama de excepción) y la UI muestra la etiqueta "No disponible" y el mensaje con `st.error`, no "Rechazada". Ajusta el contrato de la Etapa 2 (se actualiza en T090).
+- **El origen se muestra tal cual se ejecutó**: la consulta SQL va con `st.code(sql, language="sql")` sin reformatearla (es lo que escribió el LLM y validó la tool; mostrarla reescrita no sería trazable, principio IV). El desplegable "Consulta SQL ejecutada" aparece **solo** si `sql_ejecutado` no es `None`; "Documentos citados" **solo** si `fuentes_documentales` no está vacía. B08 (ruta `rag` sin fragmentos citados) muestra la etiqueta "Documentos" y ningún desplegable.
+- **Escape de `$`**: Streamlit interpreta `$...$` como fórmulas LaTeX y la respuesta puede traer importes o símbolos de moneda. Todo texto del LLM pasa por `escapar_markdown` antes de `st.markdown`.
+- **Sin historial** (RF-017): se muestra solo la respuesta de la última pregunta enviada; no se guarda nada entre preguntas ni se reutiliza el resultado anterior. El estado de sesión se usa únicamente para el contenido del campo de pregunta.
+- **Pregunta en blanco**: la UI no llama a `run_question` y muestra `st.warning("Escribí una pregunta.")`.
+- **Excepción inesperada de `run_question`** (no debería ocurrir): la UI la atrapa y muestra el mensaje genérico en castellano con `st.error`; nunca el texto de la excepción ni una traza.
+- **Claves de los widgets fijas** (las usan los tests): campo `pregunta`, botón de envío `preguntar` (dentro de `st.form`, para que Enter también envíe), botones de ejemplo `ejemplo_0`, `ejemplo_1` y `ejemplo_2`. Los ejemplos fijan `st.session_state["pregunta"]` en un `on_click`; no envían la pregunta.
+- **Elementos de salida fijos** (los usan los tests): la etiqueta con `st.caption(f"Fuente: {etiqueta}")`; los desplegables con `st.expander("Consulta SQL ejecutada")` y `st.expander("Documentos citados")`; el tiempo con `st.caption(f"Respondido en {segundos:.1f} s")`.
+- **Cuota**: una pregunta gasta de 2 a 4 llamadas; los tests con LLM esperan 4 s entre pruebas, como en la Etapa 2.
+
+## Síntesis de la etapa: modelo y effort recomendados
+
+| Fase | Tareas | Qué se hace | Modelo | Effort | Motivo |
+|------|--------|-------------|--------|--------|--------|
+| 15. Base para la UI | T078 a T082 | Campo `fallo` en `RespuestaAgente`; `presentacion.py` con sus tests | Sonnet 5.5 | medium | Código corto y bien delimitado; el cuidado está en el escape de `$` y en no romper los tests de `run_question` |
+| 16. App Streamlit | T083 a T086 | Tests con `AppTest`, configuración de Streamlit y `app/streamlit_app.py` | Sonnet 5.5 | high | La parte difícil es la API de `AppTest` y de los formularios (claves, `session_state` en `on_click`, `st.form`); conviene razonar a fondo antes de escribir los tests |
+| 17. Validación real | T087 a T089 | Pruebas con LLM real vía `AppTest`, servidor sin cabeza, revisión visual | Sonnet 5.5 | medium | Sobre todo ejecutar y diagnosticar; si una pregunta falla por el prompt, el ajuste es pequeño |
+| 18. Cierre | T090 y T091 | Documentación (ui.md, agent-graph.md, plan, quickstart, research R16) y verificación final | Sonnet 5.5 | low | Edición de texto y comprobaciones mecánicas; Haiku 4.5 alcanza si solo hay que ajustar texto, pero Sonnet evita errores en los contratos |
+
+Ninguna fase de esta etapa justifica Opus: no hay diseño de seguridad nuevo ni prompts que calibrar. Si en la Fase 17 una pregunta falla por una decisión del router o de la síntesis, se resuelve en `prompts.py` como en la Etapa 2 (T075) y ahí sí conviene subir a Opus con effort high solo para esa corrección.
+
+## Fase 15: Base para la UI (campo `fallo` y lógica de presentación)
+
+**Propósito**: dejar listo, y probado sin servidor, todo lo que la app necesita saber de una `RespuestaAgente`.
+
+**Prueba independiente**: `pytest tests/unit/test_presentacion.py tests/unit/test_run_question.py` en verde sin LLM.
+
+### Tests de la fase
+
+> Escribirlos primero y verificar que fallan antes de implementar.
+
+- [ ] T078 [P] [US5] Crear `tests/unit/test_presentacion.py` (sin LLM, base ni Streamlit) para `gym_agent.presentacion`. Cubre: (a) `etiqueta_ruta(respuesta)`: `sql` → "Base de datos", `rag` → "Documentos", `ambas` → "Ambas", `rechazar` con cada uno de los tres motivos → "Rechazada", y `fallo = True` (con cualquier ruta) → "No disponible"; (b) `documentos_citados(respuesta) -> list[str]`: `"Reglamento interno, p. 3"` para cada fuente con página, solo el nombre del documento si `pagina` es `None`, y `[]` si no hay fuentes; (c) `escapar_markdown(texto)`: cada `$` pasa a `\$` ("Cuota de $15.000 y $20.000" no deja ningún `$` sin escapar), un texto sin `$` queda igual, y un `$` ya escapado (`\$`) no se escapa dos veces; (d) `EJEMPLOS` tiene exactamente 3 preguntas distintas y no vacías (una de SQL, una de RAG y una híbrida: S01, R01 y H02) y cada una aparece **literal** en [contracts/eval-battery.md](contracts/eval-battery.md) (se lee el archivo desde la raíz del repo con `REPO_ROOT` de `gym_agent.config`).
+- [ ] T079 [P] [US5] Agregar a `tests/unit/test_run_question.py` tests **nuevos** (sin tocar los existentes): `fallo` es `False` en una respuesta normal, en un rechazo y con la pregunta vacía; `fallo` es `True` cuando un nodo lanza una excepción y cuando el LLM agota la cuota (excepción con `PerDay`), y en ese caso el mensaje genérico sigue sin contener el texto de la excepción.
+
+### Implementación de la fase
+
+- [ ] T080 [US5] Agregar `fallo: bool = False` a `RespuestaAgente` en `src/gym_agent/graph/state.py` (docstring: `True` solo cuando `run_question` atrapó una excepción y devolvió el mensaje genérico) y ponerlo en `True` en la rama `except` de `run_question` en `src/gym_agent/graph/builder.py`. No cambiar nada más del grafo ni de la traza.
+- [ ] T081 [US5] Crear `src/gym_agent/presentacion.py`, que **no importa** `streamlit`, `gym_agent.tools` ni `gym_agent.db` (solo `gym_agent.graph.state` y `gym_agent.config`): `ETIQUETAS_RUTA` (dict con los textos de T078 (a)), `etiqueta_ruta(respuesta: RespuestaAgente) -> str`, `documentos_citados(respuesta) -> list[str]`, `escapar_markdown(texto: str) -> str` (con `re.sub(r"(?<!\\)\$", r"\\$", texto)` o equivalente) y `EJEMPLOS: tuple[str, str, str]` con S01 "¿Cuántos socios tiene cada plan?", R01 "¿Cómo funciona el congelamiento de la cuota?" y H02 "¿Qué equipos están en mantenimiento y cada cuánto se revisan según el manual?". Docstring en el módulo y en cada función.
+- [ ] T082 [US5] Ejecutar `pytest tests/unit/test_presentacion.py tests/unit/test_run_question.py` y después `pytest tests/unit` completo; corregir hasta que pasen.
+
+**Punto de control**: `etiqueta_ruta` distingue las cuatro rutas, el rechazo y la falla; `escapar_markdown` neutraliza `$`; la suite unitaria sigue en verde.
+
+---
+
+## Fase 16: Historia 1, app Streamlit (P1)
+
+**Objetivo**: una app que recibe una pregunta (con el botón o con Enter), la responde con `run_question` y muestra la respuesta, la fuente y el origen, según [contracts/ui.md](contracts/ui.md).
+
+**Prueba independiente**: `pytest tests/unit/test_streamlit_app.py` en verde sin LLM ni base.
+
+### Tests de la fase
+
+> Escribirlos primero y verificar que fallan antes de implementar.
+
+- [ ] T083 [P] [US1] Crear `tests/unit/test_streamlit_app.py` (sin LLM ni base) con `streamlit.testing.v1.AppTest.from_file("app/streamlit_app.py", default_timeout=10)` (ruta calculada desde `REPO_ROOT`). Antes de correr la app, un `monkeypatch.setattr("gym_agent.graph.run_question", falso)` reemplaza a `run_question` por una función que registra sus llamadas y devuelve una `RespuestaAgente` armada en el test (la app debe importarlo con `from gym_agent.graph import run_question` **dentro del script**, para que el parche se vea). Antes de escribir los tests, consultar la API real de `AppTest` de Streamlit 1.65.0 (`python -c "from streamlit.testing.v1 import AppTest; help(AppTest)"`) y cómo se accede a un `form_submit_button` y a los expanders. Cubre: (a) primer render sin excepciones (`at.exception` vacío), con título, campo `pregunta`, botón `preguntar`, los tres botones de ejemplo y **sin** respuesta ni desplegables; (b) ruta `sql`: se llamó a `run_question` una vez con el texto escrito, la respuesta aparece, el caption es "Fuente: Base de datos", hay un desplegable "Consulta SQL ejecutada" con un `st.code` en lenguaje `sql` igual a `sql_ejecutado` y **no** hay "Documentos citados"; (c) ruta `rag` con dos fuentes: caption "Fuente: Documentos", desplegable "Documentos citados" con "Reglamento interno, p. 3" y sin desplegable SQL; (d) ruta `ambas`: caption "Fuente: Ambas" y los dos desplegables; (e) B08, ruta `rag` con `fuentes_documentales == []`: "Fuente: Documentos" y ningún desplegable; (f) rechazo: "Fuente: Rechazada" y ningún desplegable; (g) `fallo = True`: "Fuente: No disponible", el mensaje en un `st.error` y ningún desplegable; (h) un `run_question` falso que lanza `RuntimeError("password=secreta")`: la app no muestra excepción de Streamlit, muestra el mensaje genérico y el texto `password=secreta` no aparece en ningún elemento; (i) pregunta en blanco: no se llama a `run_question` y aparece el `st.warning`; (j) al hacer clic en `ejemplo_0` el campo `pregunta` pasa a valer `EJEMPLOS[0]` y **no** se llama a `run_question`; (k) una respuesta con `$15.000` se renderiza con el `$` escapado; (l) sin historial: tras dos preguntas seguidas solo se ve la respuesta de la segunda y el falso recibió únicamente el texto de cada una (RF-017).
+- [ ] T084 [P] [US1] Crear `.streamlit/config.toml` con `[browser] gatherUsageStats = false` y `[server] headless = false` (Streamlit se ejecuta siempre desde la raíz del repositorio, donde Streamlit lee ese archivo). El objetivo es que la primera ejecución no se quede esperando un correo electrónico por consola (CE-005: una persona nueva debe llegar a la primera respuesta solo con el README). Si T088 muestra que igual pide el correo, ajustar este archivo hasta evitarlo.
+
+### Implementación de la fase
+
+- [ ] T085 [US1] Crear `app/streamlit_app.py` según [contracts/ui.md](contracts/ui.md) y las decisiones de la etapa: `st.set_page_config(page_title="Asistente del gimnasio")`; título y texto de ayuda (responde sobre socios, pagos, clases, equipamiento y los documentos del gimnasio, en castellano o inglés, y cada pregunta se procesa por separado); `st.form` con el campo `pregunta` y el botón `preguntar` ("Preguntar"); tres botones `ejemplo_0` a `ejemplo_2` con `EJEMPLOS` (fuera del formulario, con `on_click` que fija `st.session_state["pregunta"]`); al enviar, `st.spinner("Pensando...")` y `run_question(pregunta)`; salida con `st.markdown(escapar_markdown(...))` (o `st.error` si `fallo`), `st.caption(f"Fuente: {etiqueta_ruta(...)}")`, los desplegables condicionales (`st.code(..., language="sql")` y la lista de `documentos_citados`) y el caption de tiempo. Pregunta en blanco y excepción inesperada según las decisiones de la etapa. Importa solo `streamlit`, `gym_agent.graph` y `gym_agent.presentacion`. Docstring del módulo y comentarios solo donde el motivo no sea evidente (por ejemplo, por qué se escapa `$`).
+- [ ] T086 [US1] Ejecutar `pytest tests/unit/test_streamlit_app.py` y después `pytest tests/unit`; corregir hasta que pasen.
+
+**Punto de control**: con funciones falsas, la app muestra el origen correcto para cada tipo de respuesta y nunca un mensaje técnico.
+
+---
+
+## Fase 17: Validación con el LLM real y con el servidor
+
+**Propósito**: comprobar con Gemini y la base reales que la interfaz muestra el origen de cada respuesta (CE-006) y que `streamlit run` arranca en un entorno limpio.
+
+- [ ] T087 [P] [US1] Crear `tests/integration/test_app_llm.py` con `@pytest.mark.llm` (LLM, base e ingesta reales): la misma técnica de `AppTest` de T083, **sin** parchear `run_question` y con `default_timeout=90`. Pausa de 4 s entre pruebas. Cubre: S01 (caption "Fuente: Base de datos", desplegable "Consulta SQL ejecutada" con un `st.code` que empieza con `SELECT` o `WITH`, sin "Documentos citados"); R01 (caption "Fuente: Documentos", "Documentos citados" incluye "Reglamento interno", sin desplegable SQL); H02 (caption "Fuente: Ambas" y los dos desplegables); B01 (caption "Fuente: Rechazada", sin desplegables y `hash_tablas` con `conn_admin` idéntico antes y después); B03 (caption "Fuente: Rechazada"); S04 (la respuesta contiene "member"). En todas, ningún elemento de la página contiene `Traceback`, `psycopg` ni `Exception`. Son pruebas de humo: la batería completa es de la Etapa 4.
+- [ ] T088 [US1] Prueba del servidor sin navegador: desde la raíz del repo, con la entrada estándar cerrada, ejecutar en segundo plano `.venv/Scripts/streamlit run app/streamlit_app.py --server.port 8599 --server.headless true`, esperar a que `http://localhost:8599/_stcore/health` responda `ok`, y detener el proceso (por su PID). Repetir **sin** `--server.headless true` y con la entrada cerrada (`< /dev/null`) para comprobar que, con `.streamlit/config.toml`, no se queda esperando un correo y el servidor responde `ok`. Anotar el resultado y el ajuste que hizo falta, si hubo, en [research.md](research.md) (R16).
+- [ ] T089 [US5] Revisión visual de las seis preguntas de la tabla de [quickstart.md](quickstart.md#5-aplicación) en un navegador: la ruta, el SQL y los documentos son visibles sin herramientas externas, el rechazo no muestra consulta, las respuestas en inglés salen en inglés y nunca aparece un mensaje técnico. Si la sesión dispone de una herramienta de navegador (Playwright), usarla con capturas de pantalla; si no, esta tarea la hace la persona y se deja anotado en research R16 que quedó pendiente de revisión manual. Ejecutarla con la base y la clave reales; consume cuota de la API.
+
+**Punto de control**: las pruebas con el LLM real pasan, `streamlit run` arranca sin pedir nada por consola y el origen de cada respuesta se ve en la pantalla.
+
+---
+
+## Fase 18: Cierre de la Etapa 3
+
+**Propósito**: documentación al día y verificación final.
+
+- [ ] T090 Actualizar la documentación a lo implementado: [contracts/ui.md](contracts/ui.md) (etiqueta "No disponible" y `st.error` para `fallo`, escape de `$`, pregunta en blanco, claves de los widgets, que el SQL se muestra sin reformatear y que B08 no muestra desplegables); [contracts/agent-graph.md](contracts/agent-graph.md) (`RespuestaAgente.fallo`); [plan.md](plan.md) (`presentacion.py` y `.streamlit/config.toml` en la estructura del proyecto); [quickstart.md](quickstart.md) (sección 5: ejecutar siempre desde la raíz del repo y qué se espera al arrancar, y la lista de tests si cambió algún comando); y la sección R16 de [research.md](research.md) ("Interfaz: decisiones y verificación") con T087, T088 y T089.
+- [ ] T091 Cierre: correr `pytest tests/unit tests/integration` (con la base) y `pytest -m llm`, todo en verde; confirmar con `hash_tablas` que la base no cambió; verificar con `grep` que `app/` solo importa `streamlit`, `gym_agent.graph` y `gym_agent.presentacion`, y que `src/gym_agent/presentacion.py` no importa `streamlit`, `gym_agent.tools` ni `gym_agent.db`; confirmar que `git status` no muestra `logs/` ni `.env`; y marcar acá las tareas completadas.
+
+**Punto de control final de la Etapa 3**: la app responde las seis preguntas del quickstart mostrando ruta y origen, el rechazo y la falla se distinguen, nunca muestra mensajes técnicos y arranca con un solo comando desde la raíz; la Etapa 4 (evaluación) puede empezar importando solo `gym_agent.graph`.
+
+---
+
+## Dependencias y orden de ejecución (Etapa 3)
+
+### Entre fases
+
+- **Fase 15**: requiere la Etapa 2 cerrada (T077).
+- **Fase 16**: requiere la Fase 15 (usa `presentacion.py` y `fallo`).
+- **Fase 17**: requiere la Fase 16, la clave de Gemini, la base y la ingesta. T088 no necesita la clave.
+- **Fase 18**: requiere la Fase 17.
+
+### Dentro de las fases
+
+- Fase 15: T078 y T079 en paralelo y antes de T080 y T081; T080 antes de T081 (usa `fallo`); T082 al final.
+- Fase 16: T083 y T084 en paralelo y antes de T085; T086 al final.
+- Fase 17: T087 y T088 en paralelo; T089 después de ambas.
+- Fase 18: T090 antes de T091.
+
+### Oportunidades de paralelismo
+
+```text
+Después de la Etapa 2:
+  T078 ∥ T079 → T080 → T081 → T082
+  T083 ∥ T084 → T085 → T086
+  T087 ∥ T088 → T089 → T090 → T091
+```
+
+## Estrategia de implementación (Etapa 3)
+
+1. **Lo no visual primero** (Fase 15): la etiqueta de ruta, el escape de `$` y el campo `fallo` se prueban sin servidor y son lo que más fácil se rompe sin que nadie lo note.
+2. **Probar la app con `AppTest` antes de abrir un navegador** (Fase 16): es rápido, no gasta cuota y cubre cada tipo de respuesta con una `RespuestaAgente` armada a mano.
+3. **Una sola pasada con el LLM real** (Fase 17): son 6 preguntas, de 2 a 4 llamadas cada una; no repetirlas sin un motivo.
+4. **MVP de la etapa**: Fases 15 y 16 (la app funciona con el origen visible). La Fase 17 valida y la 18 documenta; si falta tiempo, se recortan los ejemplos y el caption de tiempo, no el origen de la respuesta (CE-006).
+5. **No pasar a la Etapa 4** hasta cerrar T091.
+
+## Pendiente para etapas posteriores (no es de esta etapa)
+
+- README completo con el uso de la app y el recorrido desde cero (Etapa 5, CE-005); en esta etapa solo se actualiza el quickstart.
+- El README debe aclarar que `streamlit run app/streamlit_app.py` se ejecuta desde la raíz del repositorio, para que se lea `.streamlit/config.toml`.
