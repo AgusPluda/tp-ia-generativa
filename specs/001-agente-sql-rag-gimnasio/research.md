@@ -145,3 +145,12 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
   - Base de datos (S01), Documentos (R01, "Reglamento interno, p. 3") y Ambas (H02): etiqueta de fuente y desplegables correctos. Rechazadas (B01 y B03): etiqueta "Rechazada" y sin desplegables. S04: respuesta en inglés. Nunca apareció un mensaje técnico. Los ejemplos rellenan el campo y Enter envía la pregunta.
   - **Ajuste visual**: la consulta SQL, de una sola línea, se cortaba a la derecha; se agregó `wrap_lines=True` a `st.code`.
   - **Observación**: H02 tardó 48,4 s (las otras, de 1 a 11 s). Probablemente por reintentos o latencia del LLM; no se investigó. Pendiente de mirar en la Etapa 4 si afecta la evaluación.
+
+## R16b. Diseño de la interfaz (Fase 17b)
+
+- **Pruebas** (2026-10-07): `pytest tests/unit` 319 pasan; `pytest tests/integration/test_app_llm.py -m llm -k s01` pasa, así que `AppTest` funciona igual con `st.navigation` (la página por defecto es Chat y el parche de `run_question` se sigue viendo).
+- **`AppTest` y la navegación**: `at.switch_page("paginas/preguntas.py")` funciona. `link_button` aparece en `at.sidebar.get("link_button")` como `UnknownElement`, pero su `proto.url` y `proto.label` son legibles, así que el test verifica la URL y la etiqueta.
+- **Revisión visual con Playwright** (puerto 8599, servidor detenido al terminar): tema oscuro; título "🏋️ Gym AI Agent"; fila de tres ejemplos arriba del campo, con tooltip; barra lateral con "Chat" y "Preguntas evaluativas" y debajo el link a Phoenix con el aviso del perfil `observability`; página de preguntas con las 4 secciones y su tabla (los chequeos conservan el formato de código); una pregunta real (S01) respondida con "Fuente: Base de datos" y el desplegable de la consulta.
+- **Acento**: se probó rojo (`#E53935`) y el borde del campo de pregunta al enfocarlo parecía un error; se cambió a naranja `primaryColor = "#FF7043"`. Los botones son secundarios y no lo usan; el botón "Preguntar" sigue secundario para no tocar el formulario.
+- **Ajuste visual**: la navegación ya dibuja su propio separador, así que se quitó el `st.sidebar.divider()` previsto (quedaban dos líneas).
+- **Observación**: abrir `/preguntas` directamente en el navegador genera dos errores 404 en consola (`/preguntas/_stcore/health` y `host-config`); es de Streamlit con las URL de las páginas y no afecta a la app.

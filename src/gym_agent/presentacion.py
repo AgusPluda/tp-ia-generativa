@@ -5,7 +5,10 @@ solo necesita `gym_agent.graph` y este módulo (contrato `ui.md`).
 """
 
 import re
+from typing import NamedTuple
+from urllib.parse import urlsplit
 
+from gym_agent.config import PHOENIX_ENDPOINT, REPO_ROOT
 from gym_agent.graph.state import RespuestaAgente, Ruta
 
 ETIQUETAS_RUTA: dict[Ruta | str, str] = {
@@ -17,14 +20,43 @@ ETIQUETAS_RUTA: dict[Ruta | str, str] = {
 }
 """Texto que ve la persona para cada ruta; `fallo` cubre la excepción atrapada en `run_question`."""
 
-EJEMPLOS: tuple[str, str, str] = (
-    "¿Cuántos socios tiene cada plan?",
-    "¿Cómo funciona el congelamiento de la cuota?",
-    "¿Qué equipos están en mantenimiento y cada cuánto se revisan según el manual?",
+class Ejemplo(NamedTuple):
+    """Pregunta de ejemplo: la etiqueta va en el botón y la pregunta completa en el tooltip."""
+
+    etiqueta: str
+    pregunta: str
+
+
+EJEMPLOS: tuple[Ejemplo, Ejemplo, Ejemplo] = (
+    Ejemplo("Socios por plan", "¿Cuántos socios tiene cada plan?"),
+    Ejemplo("Congelamiento de cuota", "¿Cómo funciona el congelamiento de la cuota?"),
+    Ejemplo(
+        "Equipos en mantenimiento",
+        "¿Qué equipos están en mantenimiento y cada cuánto se revisan según el manual?",
+    ),
 )
-"""Preguntas de ejemplo de la interfaz: S01 (SQL), R01 (RAG) y H02 (híbrida) de la batería."""
+"""Ejemplos de la interfaz: S01 (SQL), R01 (RAG) y H02 (híbrida) de la batería."""
+
+BATERIA_PATH = REPO_ROOT / "specs" / "001-agente-sql-rag-gimnasio" / "contracts" / "eval-battery.md"
+"""Fuente de las preguntas evaluativas que muestra la interfaz."""
 
 _PESOS_SIN_ESCAPAR = re.compile(r"(?<!\\)\$")
+_SEPARADOR_DE_CELDAS = re.compile(r"(?<!\\)\|")
+
+
+class PreguntaBateria(NamedTuple):
+    """Fila de una tabla de la batería: ID, pregunta y chequeo principal."""
+
+    id: str
+    pregunta: str
+    chequeo: str
+
+
+class SeccionBateria(NamedTuple):
+    """Sección `###` de la batería con sus preguntas."""
+
+    titulo: str
+    preguntas: list[PreguntaBateria]
 
 
 def etiqueta_ruta(respuesta: RespuestaAgente) -> str:
@@ -43,3 +75,38 @@ def documentos_citados(respuesta: RespuestaAgente) -> list[str]:
 def escapar_markdown(texto: str) -> str:
     """Escapa cada `$` para que Streamlit no lo tome como fórmula; no duplica un `\\$` previo."""
     return _PESOS_SIN_ESCAPAR.sub(r"\\$", texto)
+
+
+def secciones_bateria() -> list[SeccionBateria]:
+    """Lee las secciones `###` bajo `## Preguntas` de `eval-battery.md` y las filas de sus tablas."""
+    secciones: list[SeccionBateria] = []
+    en_preguntas = False
+    for linea in BATERIA_PATH.read_text(encoding="utf-8").splitlines():
+        if linea.startswith("## "):
+            en_preguntas = linea.startswith("## Preguntas")
+        elif not en_preguntas:
+            continue
+        elif linea.startswith("### "):
+            secciones.append(SeccionBateria(linea[4:].strip(), []))
+        elif linea.startswith("|") and secciones:
+            celdas = [c.strip() for c in _SEPARADOR_DE_CELDAS.split(linea.strip())[1:-1]]
+            if len(celdas) == 3 and celdas[0] != "ID" and not set(celdas[0]) <= {"-"}:
+                secciones[-1].preguntas.append(PreguntaBateria(*celdas))
+    return secciones
+
+
+def tabla_markdown(preguntas: list[PreguntaBateria]) -> str:
+    """Tabla markdown con ID, pregunta y chequeo; escapa `$` y `|` dentro de las celdas."""
+
+    def celda(texto: str) -> str:
+        return escapar_markdown(texto).replace("|", r"\|")
+
+    filas = ["| ID | Pregunta | Chequeo principal |", "|----|----------|-------------------|"]
+    filas += [f"| {celda(p.id)} | {celda(p.pregunta)} | {celda(p.chequeo)} |" for p in preguntas]
+    return "\n".join(filas)
+
+
+def url_phoenix() -> str:
+    """URL de la interfaz de Phoenix: el endpoint de trazas sin la ruta."""
+    partes = urlsplit(PHOENIX_ENDPOINT)
+    return f"{partes.scheme}://{partes.netloc}"

@@ -1,60 +1,28 @@
-"""Interfaz Streamlit del asistente del gimnasio (contrato `ui.md`).
+"""Entrada de la interfaz Streamlit del asistente del gimnasio (contrato `ui.md`).
 
-Se ejecuta con `streamlit run app/streamlit_app.py` desde la raíz del repositorio. Llama a
-`run_question` en el mismo proceso y muestra la respuesta junto con su origen. No guarda
-historial: solo se ve la respuesta de la última pregunta enviada (RF-017).
+Se ejecuta con `streamlit run app/streamlit_app.py` desde la raíz del repositorio. Arma la
+navegación de la barra lateral (Chat y Preguntas evaluativas) y el link a Phoenix; el contenido
+de cada página está en `app/paginas/`.
 """
+
+from pathlib import Path
 
 import streamlit as st
 
-from gym_agent.graph import run_question
-from gym_agent.presentacion import EJEMPLOS, documentos_citados, escapar_markdown, etiqueta_ruta
+from gym_agent.presentacion import url_phoenix
 
-MENSAJE_GENERICO = "En este momento no puedo responder. Probá de nuevo en unos minutos."
+st.set_page_config(page_title="Gym AI Agent", page_icon="🏋️")
 
-st.set_page_config(page_title="Asistente del gimnasio")
-st.title("Asistente del gimnasio")
-st.write(
-    "Preguntá sobre socios, pagos, clases, equipamiento y los documentos del gimnasio, "
-    "en castellano o en inglés. Cada pregunta se procesa por separado: no recuerdo las anteriores."
+st.logo(str(Path(__file__).parent / "logo.svg"), size="large")
+
+pagina = st.navigation(
+    [
+        st.Page("paginas/chat.py", title="Chat", icon="💬", default=True),
+        st.Page("paginas/preguntas.py", title="Preguntas evaluativas", icon="📋"),
+    ]
 )
 
+st.sidebar.link_button("Observabilidad en Phoenix", url_phoenix(), icon="🔭")
+st.sidebar.caption("Requiere `docker compose --profile observability up -d`.")
 
-def _usar_ejemplo(texto: str) -> None:
-    """Rellena el campo de pregunta sin enviarla."""
-    st.session_state["pregunta"] = texto
-
-
-with st.form("formulario"):
-    pregunta = st.text_input("Pregunta", key="pregunta")
-    enviado = st.form_submit_button("Preguntar", key="preguntar")
-
-st.caption("Ejemplos:")
-for i, ejemplo in enumerate(EJEMPLOS):
-    st.button(ejemplo, key=f"ejemplo_{i}", on_click=_usar_ejemplo, args=(ejemplo,))
-
-if enviado:
-    if not pregunta.strip():
-        st.warning("Escribí una pregunta.")
-    else:
-        try:
-            with st.spinner("Pensando..."):
-                respuesta = run_question(pregunta)
-        except Exception:
-            # run_question no debería lanzar; si lo hace, nunca se muestra el detalle.
-            st.error(MENSAJE_GENERICO)
-        else:
-            if respuesta.fallo:
-                st.error(respuesta.respuesta)
-            else:
-                # Streamlit toma `$...$` como fórmula LaTeX; los importes del LLM deben salir literales.
-                st.markdown(escapar_markdown(respuesta.respuesta))
-            st.caption(f"Fuente: {etiqueta_ruta(respuesta)}")
-            if respuesta.sql_ejecutado is not None:
-                with st.expander("Consulta SQL ejecutada"):
-                    st.code(respuesta.sql_ejecutado, language="sql", wrap_lines=True)
-            citados = documentos_citados(respuesta)
-            if citados:
-                with st.expander("Documentos citados"):
-                    st.markdown("\n".join(f"- {escapar_markdown(c)}" for c in citados))
-            st.caption(f"Respondido en {respuesta.duracion_ms / 1000:.1f} s")
+pagina.run()

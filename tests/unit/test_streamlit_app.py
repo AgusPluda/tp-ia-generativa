@@ -5,7 +5,7 @@ from streamlit.testing.v1 import AppTest
 
 from gym_agent.config import REPO_ROOT
 from gym_agent.graph.state import FuenteDocumental, RespuestaAgente
-from gym_agent.presentacion import EJEMPLOS
+from gym_agent.presentacion import EJEMPLOS, secciones_bateria, url_phoenix
 
 APP = str(REPO_ROOT / "app" / "streamlit_app.py")
 GENERICO = "En este momento no puedo responder. Probá de nuevo en unos minutos."
@@ -70,11 +70,13 @@ def desplegables(at):
 def test_primer_render_sin_respuesta(correr):
     at, falso = correr(armar())
     assert not at.exception
-    assert at.title[0].value
+    assert at.title[0].value == "🏋️ Gym AI Agent"
     assert at.text_input(key="pregunta").value == ""
     assert at.button(key="preguntar") is not None
-    for i in range(3):
-        assert at.button(key=f"ejemplo_{i}").label == EJEMPLOS[i]
+    for i, ejemplo in enumerate(EJEMPLOS):
+        boton = at.button(key=f"ejemplo_{i}")
+        assert boton.label == ejemplo.etiqueta
+        assert boton.help == ejemplo.pregunta
     assert not at.error and not at.warning
     assert not at.expander
     assert not any(c.startswith("Fuente:") for c in captions(at))
@@ -156,9 +158,35 @@ def test_pregunta_en_blanco_no_llama_a_run_question(correr):
 def test_ejemplo_rellena_el_campo_sin_enviar(correr):
     at, falso = correr(armar())
     at.button(key="ejemplo_0").click().run()
-    assert at.text_input(key="pregunta").value == EJEMPLOS[0]
+    assert at.text_input(key="pregunta").value == EJEMPLOS[0].pregunta
     assert falso.llamadas == []
     assert not any(c.startswith("Fuente:") for c in captions(at))
+
+
+def test_pagina_de_preguntas_evaluativas(correr):
+    at, falso = correr(armar())
+    at.switch_page("paginas/preguntas.py").run()
+    assert not at.exception
+    assert [s.value for s in at.subheader] == [s.titulo for s in secciones_bateria()]
+    visible = " ".join(m.value for m in at.markdown)
+    ids = [p.id for s in secciones_bateria() for p in s.preguntas]
+    assert len(ids) == 26
+    assert all(f"| {id_} |" in visible for id_ in ids)
+    assert "Chequeo principal" in visible
+    assert not at.button  # sin botón "Probar en el chat"
+    assert falso.llamadas == []
+
+
+def test_barra_lateral_con_link_a_phoenix(correr):
+    at, _ = correr(armar())
+    assert not at.exception
+    sidebar = " ".join(str(e.value) for e in at.sidebar.caption)
+    assert "docker compose --profile observability up -d" in sidebar
+    # AppTest no siempre expone link_button; la URL queda cubierta por url_phoenix().
+    enlaces = at.sidebar.get("link_button")
+    if enlaces:
+        assert enlaces[0].proto.url == url_phoenix()
+        assert enlaces[0].proto.label == "Observabilidad en Phoenix"
 
 
 def test_pesos_se_renderizan_escapados(correr):
