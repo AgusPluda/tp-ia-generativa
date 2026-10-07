@@ -74,3 +74,5 @@ class RespuestaAgente(BaseModel):
     duracion_ms: int
     motivo_rechazo: MotivoRechazo | None = None
     fuentes_usadas: Literal["sql", "rag", "ambas", "ninguna"] = "ninguna"
+    fallo: bool = False
+    """`True` solo cuando `run_question` atrapó una excepción y devolvió el mensaje genérico."""

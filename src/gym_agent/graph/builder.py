@@ -133,6 +133,7 @@ def run_question(pregunta: str, *, grafo: CompiledStateGraph | None = None) -> R
             ruta=estado.get("ruta", "rechazar"),
             idioma=idioma,
             duracion_ms=int((time.perf_counter() - inicio) * 1000),
+            fallo=True,
         )
     registrar_traza(estado, respuesta, error=detalle)
     return respuesta

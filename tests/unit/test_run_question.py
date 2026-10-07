@@ -151,6 +151,39 @@ def test_pregunta_vacia_es_falta_contexto_sin_llamar_a_nada():
     assert falsos.llamadas == []
 
 
+def test_fallo_es_false_en_una_respuesta_normal():
+    falsos = Falsos(DecisionRouter(ruta="sql", idioma="es"))
+    assert run_question("p", grafo=falsos.grafo()).fallo is False
+
+
+def test_fallo_es_false_en_un_rechazo():
+    decision = DecisionRouter(ruta="rechazar", idioma="es", motivo_rechazo="fuera_de_dominio")
+    assert run_question("¿Quién ganó el mundial?", grafo=Falsos(decision).grafo()).fallo is False
+
+
+def test_fallo_es_false_con_la_pregunta_vacia():
+    falsos = Falsos(DecisionRouter(ruta="sql", idioma="es"))
+    assert run_question("   ", grafo=falsos.grafo()).fallo is False
+
+
+def test_fallo_es_true_si_un_nodo_lanza():
+    falsos = Falsos(DecisionRouter(ruta="sql", idioma="es"), falla=RuntimeError("clave=secreta"))
+    resultado = run_question("p", grafo=falsos.grafo())
+    assert resultado.fallo is True
+    assert resultado.respuesta == MENSAJE_ES
+    assert "secreta" not in resultado.respuesta
+
+
+def test_fallo_es_true_si_se_agota_la_cuota():
+    falla = RuntimeError("429 RESOURCE_EXHAUSTED GenerateRequestsPerDayPerProjectPerModel")
+    falsos = Falsos(DecisionRouter(ruta="sql", idioma="es"), falla=falla)
+    resultado = run_question("p", grafo=falsos.grafo())
+    assert resultado.fallo is True
+    assert resultado.respuesta == MENSAJE_ES
+    assert "429" not in resultado.respuesta
+    assert "PerDay" not in resultado.respuesta
+
+
 def test_inicia_phoenix_solo_la_primera_vez(monkeypatch):
     llamadas = []
     monkeypatch.setattr(builder, "iniciar_phoenix", lambda: llamadas.append(1) or False)
