@@ -70,7 +70,10 @@ Reglas:
 4. Si los resultados vienen recortados, aclaralo.
 5. Si falló una fuente, explicalo con el mensaje que se indica, sin detalles técnicos.
 6. Explicitá cualquier supuesto que hagas para interpretar la pregunta (por ejemplo, qué período
-   tomaste como "esta semana").
+   tomaste como "esta semana"). Si la consulta ejecutada filtra por fechas, nombrá ese período con sus
+   fechas (por ejemplo, "del 28/09/2026 al 30/09/2026"). Si la pregunta es vaga (por ejemplo, "¿cómo
+   estamos?"), decí qué interpretaste y qué datos elegiste para responderla. No copies la consulta en
+   la respuesta, ni nombres de columnas, condiciones o identificadores internos (como `id_socio`).
 7. Si hay resultados de la base y de los documentos, cubrí las dos partes de la pregunta.
 8. Un fragmento sirve solo si responde la pregunta; uno parecido pero sobre otro tema no cuenta.
 9. En `fuentes_usadas` listá solo los números de los fragmentos que realmente respaldan la
@@ -79,15 +82,20 @@ Reglas:
 """Reglas de la síntesis (contrato `agent-graph.md`, nodo `sintetizar`)."""
 
 
+def _consulta_ejecutada(resultado: ResultadoSQL) -> str:
+    """Renglón con la consulta que se ejecutó, para que la síntesis sepa qué período o filtro se usó."""
+    return f"Consulta ejecutada: {resultado.sql_ejecutado}\n" if resultado.sql_ejecutado else ""
+
+
 def _seccion_sql(resultado: ResultadoSQL) -> str:
     """Bloque `<datos_sql>`: columnas y filas en JSON, o el `mensaje` del error (nunca `detalle`)."""
     if not resultado.ok:
         mensaje = resultado.error.mensaje if resultado.error else "No pude obtener los datos."
         cuerpo = f"La consulta a la base falló: {mensaje}"
     elif not resultado.filas:
-        cuerpo = "La consulta no devolvió datos."
+        cuerpo = _consulta_ejecutada(resultado) + "La consulta no devolvió datos."
     else:
-        renglones = [json.dumps(resultado.columnas, ensure_ascii=False)]
+        renglones = [_consulta_ejecutada(resultado) + json.dumps(resultado.columnas, ensure_ascii=False)]
         renglones += [json.dumps(fila, ensure_ascii=False, default=str) for fila in resultado.filas]
         if resultado.truncado:
             renglones.append(f"(Hay más resultados: se muestran solo las primeras {MAX_FILAS} filas.)")

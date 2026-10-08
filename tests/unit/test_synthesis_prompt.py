@@ -35,6 +35,17 @@ def test_sql_sin_filas():
     assert "no devolvió datos" in prompt
 
 
+def test_la_consulta_ejecutada_va_dentro_de_datos_sql():
+    # research R17 (B07): sin la consulta, la síntesis adivinaba el período que se usó.
+    consulta = "SELECT COUNT(*) FROM asistencias WHERE fecha BETWEEN DATE '2026-09-28' AND DATE '2026-09-30'"
+    for resultado in (_sql(sql_ejecutado=consulta, filas=[["36", "x"]]), _sql(sql_ejecutado=consulta)):
+        prompt = construir_prompt_sintesis(PREGUNTA, "es", resultado, None)
+        assert prompt.count(consulta) == 1
+        assert consulta in _seccion(prompt, "<datos_sql>", "</datos_sql>")
+    assert "nombrá ese período" in prompt
+    assert "no copies la consulta" in prompt.lower()
+
+
 def test_sql_truncado():
     prompt = construir_prompt_sintesis(PREGUNTA, "es", _sql(filas=[["a", "b"]], truncado=True), None)
     assert "primeras 50 filas" in prompt

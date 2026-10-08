@@ -67,6 +67,7 @@ Ejecuta la RAG tool y guarda `resultado_rag`. Con la ruta `ambas`, corre despué
 - **`fuentes_usadas` del estado** (`sql`, `rag`, `ambas` o `ninguna`) se calcula según **lo que se ejecutó**, no según lo que diga el LLM.
 - Con la ruta `ambas` y la SQL tool fallida, el grafo sigue con `rag` y la síntesis explica la falla de la parte SQL con su `mensaje` (nunca el `detalle`).
 - La pregunta, las filas y los fragmentos van entre marcas (`<pregunta>`, `<datos_sql>`, `<fragmentos>`) y el prompt los declara datos, no instrucciones.
+- `<datos_sql>` incluye la consulta ejecutada, para que la síntesis nombre el período o el filtro que se usó con sus fechas; la respuesta no copia la consulta ni nombres de columnas (research R17).
 
 ### `rechazar`
 Responde con una **plantilla fija** por (`motivo_rechazo`, idioma), sin LLM: solo se puede consultar información (modificación), solo se responde sobre el gimnasio (fuera de dominio), o hay que formular cada pregunta completa (falta de contexto). No consulta ninguna fuente y deja `fuentes_usadas = "ninguna"`.

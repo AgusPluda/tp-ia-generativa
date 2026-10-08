@@ -234,6 +234,15 @@ def test_j_prompt_con_esquema_pregunta_y_reglas_de_fecha():
     assert "Consulta anterior" not in prompt
 
 
+def test_j_prompt_con_las_reglas_de_la_primera_corrida_de_evaluacion():
+    # research R17: H01 (faltas), B10 (tabla fuera del esquema), H04 (umbral del manual) y B09 (estado).
+    prompt = construir_prompt_sql(ESQUEMA_FALSO, "¿Qué socios no asistieron el último mes?", "es")
+    assert "presente = false" in prompt and "NOT EXISTS" in prompt and "UNION" in prompt
+    assert "SELECT * FROM rag.chunks" in prompt and "SELECT 1 WHERE false" in prompt
+    assert "ignorala" in prompt and "no inventes ese valor" in prompt
+    assert "cualquiera sea su estado" in prompt
+
+
 def test_j_prompt_de_reintento_incluye_la_consulta_y_el_error():
     previo = IntentoPrevio(sql="SELECT now()", error="INVALIDA: usa la fecha real: now()")
     prompt = construir_prompt_sql(ESQUEMA_FALSO, "How many members?", "en", previo)

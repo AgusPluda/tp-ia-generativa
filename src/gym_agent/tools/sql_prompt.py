@@ -92,10 +92,14 @@ GLOSARIO = f"""\
 - "Hoy" es {REFERENCE_DATE.isoformat()} (fecha de referencia fija del sistema).
 - "Último mes" son los 30 días corridos hasta hoy inclusive: \
 `<columna de fecha> BETWEEN DATE '{INICIO_ULTIMO_MES.isoformat()}' AND DATE '{REFERENCE_DATE.isoformat()}'`.
-- "Asistió" / "asistencias" = `asistencias.presente = true`; "no asistió" / "faltas" = `asistencias.presente = false`.
+- "Asistió" / "asistencias" = `asistencias.presente = true`; "no asistió" / "faltó" / "faltas" = filas de \
+`asistencias` con `presente = false` (una falta registrada). "Socios que no asistieron" son los que \
+tienen alguna falta en el período: `JOIN asistencias ... WHERE presente = false`. No agregues socios sin \
+registros de asistencia (ni con `NOT IN`, ni con `NOT EXISTS`, ni con `UNION`).
 - "Pago vencido" = `pagos.estado = 'vencido'`; un pago `'pendiente'` NO es vencido.
 - "Recaudación" o "cuánto se cobró" = suma de `pagos.monto` con `estado = 'pagado'`, filtrando por `fecha_pago`.
-- "Socio activo" = `socios.estado = 'activo'`.
+- "Socio activo" = `socios.estado = 'activo'`. Filtrá por `socios.estado` solo si la pregunta lo pide \
+("activos", "dados de baja", "congelados"); "socios" o "members" a secas son todos, cualquiera sea su estado.
 - "Equipo en mantenimiento" = `equipamiento.estado = 'en_mantenimiento'`.
 - Valores válidos (exactos, en minúsculas):
   - `socios.estado`: 'activo', 'congelado', 'baja'.
@@ -111,7 +115,7 @@ GLOSARIO = f"""\
 _REGLAS = f"""\
 1. Escribí UNA sola consulta `SELECT` de PostgreSQL (se admite `WITH ... SELECT`), sin `;` \
 intermedios. Solo se puede leer: nunca INSERT, UPDATE, DELETE ni ninguna otra sentencia.
-2. Usá solo las tablas y columnas del esquema, con sus nombres exactos.
+2. Usá solo las tablas y columnas del esquema, con sus nombres exactos (salvo el caso de la regla 8).
 3. Fechas: escribilas como literales (`DATE '2026-09-01'`). Prohibido `CURRENT_DATE`, `now()`, \
 `CURRENT_TIMESTAMP`, `age()` con un solo argumento y los literales 'today' o 'now': "hoy" es \
 DATE '{REFERENCE_DATE.isoformat()}'. Para edades usá `age(DATE '{REFERENCE_DATE.isoformat()}', fecha_nacimiento)`.
@@ -119,7 +123,15 @@ DATE '{REFERENCE_DATE.isoformat()}'. Para edades usá `age(DATE '{REFERENCE_DATE
 5. Para buscar personas o nombres por texto usá `ILIKE`. Si la respuesta incluye personas, \
 devolvé nombre y apellido.
 6. Poné alias claros a las columnas calculadas (`AS cantidad`, `AS total`) y ordená el \
-resultado cuando tenga sentido."""
+resultado cuando tenga sentido.
+7. La pregunta puede tener también una parte sobre los documentos del gimnasio (reglamento, manual, \
+guías). Esa parte se responde por otro lado: ignorala y escribí la consulta solo para la parte de \
+datos. Si los datos se comparan con un valor de los documentos ("más tiempo del que indica el \
+manual"), no inventes ese valor ni filtres por él: devolvé las filas pedidas con la columna a \
+comparar, ordenadas por ella; la comparación se hace después con el documento.
+8. Solo si el usuario nombra una tabla o un esquema que no está arriba (por ejemplo "la tabla \
+rag.chunks"), escribí la consulta con ese nombre (`SELECT * FROM rag.chunks`): el sistema la \
+rechaza. Nunca la reemplaces por una consulta vacía como `SELECT 1 WHERE false`."""
 
 
 def construir_prompt_sql(
