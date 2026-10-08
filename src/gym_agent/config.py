@@ -80,6 +80,26 @@ TRAZA_PATH: Path = REPO_ROOT / "logs" / "traza.jsonl"
 PHOENIX_ENDPOINT: str = "http://localhost:6006/v1/traces"
 """Endpoint OTLP de Phoenix (perfil `observability` de docker compose); es opcional."""
 
+# --- Evaluación (Etapa 4, research R11) ---------------------------------------
+
+JUDGE_MODEL: str = "gemini-3.1-flash-lite"
+"""Modelo del juez: distinto del agente (`CHAT_MODEL`) para no evaluarse a sí mismo."""
+
+EVAL_PAUSA_S: float = 4.0
+"""Pausa entre preguntas de la batería: mantiene el ritmo bajo los 15 pedidos por minuto (research R13)."""
+
+EVAL_CORRIDAS: int = 3
+"""Corridas por defecto de la batería (el modelo principal ignora la temperatura)."""
+
+EVAL_UMBRAL_APROBACION: float = 0.85
+"""Fracción mínima de preguntas aprobadas para cumplir CE-002."""
+
+EVAL_DIR: Path = REPO_ROOT / "eval"
+"""Carpeta de la batería, los chequeos y el runner."""
+
+EVAL_RESULTS_DIR: Path = EVAL_DIR / "results"
+"""Resultados de cada corrida (JSON y trazas); ignorada por git."""
+
 
 def require_env(nombre: str) -> str:
     """Devuelve la variable de entorno `nombre` o falla con un mensaje que indica cómo resolverlo.

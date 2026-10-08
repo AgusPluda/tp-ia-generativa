@@ -12,6 +12,10 @@ eso se desactivan (`max_retries=1`) y se reintenta acá con espera exponencial (
 
 La cuota diaria del plan gratuito es por modelo: cuando se agota, esperar no sirve (el servidor
 pide horas), así que `invocar_chat` pasa al siguiente modelo de `CHAT_MODELS` (research R14).
+
+La evaluación (Etapa 4) necesita lo contrario: medir al agente con un único modelo, sin respaldo
+silencioso, y usar otro modelo para el juez (research R11). Para eso `invocar_chat` acepta
+`modelos=` y existe el administrador de contexto `solo_modelo`.
 """
 
 import logging
@@ -19,7 +23,8 @@ import math
 import re
 import time
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Any, TypeVar
 
 from langchain_core.exceptions import (
@@ -49,6 +54,29 @@ _RETRY_DELAY = re.compile(r"retryDelay'?\"?\s*:\s*'?\"?(\d+)")
 
 _modelos_agotados: set[str] = set()
 """Modelos con la cuota diaria agotada en este proceso: no se les vuelve a pedir nada."""
+
+_modelo_forzado: str | None = None
+"""Modelo fijado por `solo_modelo`: mientras está activo no hay respaldo."""
+
+
+@contextmanager
+def solo_modelo(modelo: str) -> Iterator[None]:
+    """Fuerza que `invocar_chat` use únicamente `modelo`, sin pasar al respaldo.
+
+    Si el modelo agota la cuota diaria, la excepción se propaga (y no se lo marca como agotado).
+    Los errores transitorios se siguen reintentando con ese mismo modelo. Al salir del bloque,
+    incluso por una excepción, se restaura el comportamiento por defecto.
+
+    Args:
+        modelo: nombre del modelo de chat a usar.
+    """
+    global _modelo_forzado
+    anterior = _modelo_forzado
+    _modelo_forzado = modelo
+    try:
+        yield
+    finally:
+        _modelo_forzado = anterior
 
 
 def get_chat_model(modelo: str = CHAT_MODEL) -> ChatGoogleGenerativeAI:
@@ -145,20 +173,33 @@ def reintentar(
     raise AssertionError("inalcanzable")
 
 
-def invocar_chat(armar: Callable[[ChatGoogleGenerativeAI], Any], entrada: Any) -> Any:
+def invocar_chat(
+    armar: Callable[[ChatGoogleGenerativeAI], Any],
+    entrada: Any,
+    modelos: tuple[str, ...] | None = None,
+) -> Any:
     """Invoca el chat con el primer modelo de `CHAT_MODELS` que todavía tenga cuota.
 
     Con cada modelo se reintentan los errores transitorios (`reintentar`); si el modelo agotó
     la cuota diaria, se lo recuerda como agotado y se pasa al siguiente.
 
+    Prioridad de los modelos: `modelos` explícito, después el fijado con `solo_modelo`, después
+    `CHAT_MODELS`. En los dos primeros casos no hay respaldo: la cuota diaria agotada propaga la
+    excepción y el modelo no se registra como agotado.
+
     Args:
         armar: recibe el modelo de chat y devuelve lo que se invoca, por ejemplo
             `lambda m: m.with_structured_output(ConsultaSQL)`.
         entrada: lo que se pasa a `.invoke` (el prompt).
+        modelos: nombres de modelo a usar en lugar de `CHAT_MODELS` (por ejemplo, el del juez).
 
     Raises:
         La excepción del último modelo si todos fallan, o cualquier error no transitorio.
     """
+    fijos = modelos or ((_modelo_forzado,) if _modelo_forzado else None)
+    if fijos:
+        modelo_unico = fijos[0]
+        return reintentar(armar(get_chat_model(modelo_unico)).invoke, entrada)
     disponibles = [m for m in CHAT_MODELS if m not in _modelos_agotados] or [CHAT_MODELS[-1]]
     for modelo in disponibles:
         try:

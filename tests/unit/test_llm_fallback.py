@@ -108,3 +108,60 @@ def test_si_todos_agotaron_la_cuota_se_propaga_el_error(api):
     with pytest.raises(ErrorAPI):
         llm.invocar_chat(lambda m: m, "p")
     assert llamados == list(CHAT_MODELS)
+
+
+# --- Modelo explícito y modo "sin respaldo" (Etapa 4) --------------------------------------
+
+
+def test_modelos_explicito_llama_solo_a_ese_modelo(api):
+    respuestas, llamados = api
+    respuestas[RESPALDO] = ["ok"]
+    assert llm.invocar_chat(lambda m: m, "p", modelos=(RESPALDO,)) == "ok:p"
+    assert llamados == [RESPALDO]
+
+
+def test_modelos_explicito_con_cuota_agotada_propaga_sin_marcar_agotado(api):
+    respuestas, llamados = api
+    respuestas[RESPALDO] = [ErrorAPI(CUOTA_DIARIA)]
+    with pytest.raises(ErrorAPI):
+        llm.invocar_chat(lambda m: m, "p", modelos=(RESPALDO,))
+    assert llamados == [RESPALDO]
+    assert llm._modelos_agotados == set()
+
+
+def test_solo_modelo_no_pasa_al_respaldo_con_la_cuota_agotada(api):
+    respuestas, llamados = api
+    respuestas[PRINCIPAL] = [ErrorAPI(CUOTA_DIARIA)]
+    respuestas[RESPALDO] = ["no debe usarse"]
+    with llm.solo_modelo(PRINCIPAL):
+        with pytest.raises(ErrorAPI):
+            llm.invocar_chat(lambda m: m, "p")
+    assert llamados == [PRINCIPAL]
+    assert llm._modelos_agotados == set()
+
+
+def test_solo_modelo_sigue_reintentando_los_errores_transitorios(api):
+    respuestas, llamados = api
+    respuestas[PRINCIPAL] = [ErrorAPI("503 UNAVAILABLE", code=503), "ok"]
+    with llm.solo_modelo(PRINCIPAL):
+        assert llm.invocar_chat(lambda m: m, "p") == "ok:p"
+    assert llamados == [PRINCIPAL, PRINCIPAL]
+
+
+def test_al_salir_de_solo_modelo_vuelve_el_respaldo_incluso_tras_una_excepcion(api):
+    respuestas, llamados = api
+    with pytest.raises(RuntimeError):
+        with llm.solo_modelo(PRINCIPAL):
+            raise RuntimeError("falla dentro del bloque")
+    respuestas[PRINCIPAL] = [ErrorAPI(CUOTA_DIARIA)]
+    respuestas[RESPALDO] = ["r"]
+    assert llm.invocar_chat(lambda m: m, "p") == "r:p"
+    assert llamados == [PRINCIPAL, RESPALDO]
+
+
+def test_modelos_explicito_tiene_prioridad_sobre_solo_modelo(api):
+    respuestas, llamados = api
+    respuestas[RESPALDO] = ["ok"]
+    with llm.solo_modelo(PRINCIPAL):
+        assert llm.invocar_chat(lambda m: m, "p", modelos=(RESPALDO,)) == "ok:p"
+    assert llamados == [RESPALDO]
