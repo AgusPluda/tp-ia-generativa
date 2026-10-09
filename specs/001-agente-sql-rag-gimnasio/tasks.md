@@ -948,7 +948,7 @@ Después de la Etapa 3:
 
 **Propósito**: comprobar con otra persona que el README alcanza.
 
-- [ ] T133 Preparar la prueba en `docs/prueba-ce005.md`: un guion de una página con el objetivo, lo que la persona necesita (Docker, Python 3.12 a 3.14, una clave de Gemini), la regla ("solo el README, sin ayuda de quien la acompaña"), una plantilla para anotar la hora de inicio, la hora de la primera respuesta, cada tropiezo (paso, qué pasó, cómo lo resolvió) y la pregunta que hizo, y una lista de verificación de lo que debería ver (respuesta, fuente, SQL o documento citado). Dejar los campos vacíos.
+- [X] T133 Preparar la prueba en `docs/prueba-ce005.md`: un guion de una página con el objetivo, lo que la persona necesita (Docker, Python 3.12 a 3.14, una clave de Gemini), la regla ("solo el README, sin ayuda de quien la acompaña"), una plantilla para anotar la hora de inicio, la hora de la primera respuesta, cada tropiezo (paso, qué pasó, cómo lo resolvió) y la pregunta que hizo, y una lista de verificación de lo que debería ver (respuesta, fuente, SQL o documento citado). Dejar los campos vacíos.
 - [ ] T134 Hacer la prueba con una persona que no participó del desarrollo (coordinarla **antes del 13/10**: si aparece un tropiezo hace falta tiempo para corregir y repetir). Completar la plantilla de T133, corregir el README por cada tropiezo y, si el defecto fue del código y no del texto, corregirlo con su test. Anotar el resultado (tiempo hasta la primera respuesta y cantidad de tropiezos) en el informe. Si no se consigue a nadie a tiempo, hacerla uno mismo en otra máquina o usuario y **decirlo así en el informe**: no se presenta como cumplida con otra persona.
 
 **Punto de control**: CE-005 probado y registrado, con el README ya corregido.
