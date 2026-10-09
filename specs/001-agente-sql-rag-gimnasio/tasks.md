@@ -1,13 +1,13 @@
 ---
 
-description: "Tareas de las Etapas 0 a 3 (setup, tools, agente e interfaz) del agente SQL + RAG para gimnasio"
+description: "Tareas de las Etapas 0 a 5 (setup, tools, agente, interfaz, evaluación y cierre) del agente SQL + RAG para gimnasio"
 ---
 
 # Tareas: Agente conversacional SQL + RAG para gimnasio, Etapa 0 (Setup)
 
 **Entrada**: documentos de diseño en `specs/001-agente-sql-rag-gimnasio/` ([plan.md](plan.md), [spec.md](spec.md), [data-model.md](data-model.md), [research.md](research.md), [contracts/](contracts/), [quickstart.md](quickstart.md)).
 
-**Alcance de la Etapa 0**: solo la **Etapa 0** del plan (entorno, datos sintéticos deterministas, 3 PDFs sintéticos e ingesta a `rag.chunks`), completada. Fecha objetivo: 06/10/2026. La **Etapa 1** (tools SQL y RAG) está al final de este archivo, desde la Fase 6. Las etapas 2 (agente) y 3 (interfaz) están más abajo; las etapas 4 y 5 se generan después con `/speckit-tasks`.
+**Alcance de la Etapa 0**: solo la **Etapa 0** del plan (entorno, datos sintéticos deterministas, 3 PDFs sintéticos e ingesta a `rag.chunks`), completada. Fecha objetivo: 06/10/2026. La **Etapa 1** (tools SQL y RAG) está al final de este archivo, desde la Fase 6. Las etapas 2 (agente) y 3 (interfaz) están más abajo; las etapas 4 (evaluación) y 5 (cierre) están al final, generadas con `/speckit-tasks`.
 
 **Tests**: el plan y el quickstart piden tests de invariantes de datos, determinismo (CE-007), chunking y rol de solo lectura (CE-003); por eso se incluyen. Ninguno llama al LLM salvo la tarea de humo T008.
 
@@ -882,3 +882,117 @@ Después de la Etapa 3:
 
 - El informe técnico copia el resumen de `docs/resultados-evaluacion.md` y explica sus límites: el modelo del agente ignora la temperatura (por eso las 3 corridas), cuatro preguntas las corrige un LLM, `idioma` es el que clasificó el router y la batería tiene 26 preguntas.
 - El README documenta `python -m eval.run_eval` (opciones, cuota y duración) además del recorrido desde cero (CE-005).
+
+---
+---
+
+# Etapa 5: Cierre (README, informe técnico y prueba CE-005)
+
+**Alcance**: dejar el proyecto entregable el 16/10/2026: el `README.md` que permite levantar todo desde cero (RF-014, CE-005), el informe técnico en `docs/informe-tecnico.md` y la prueba de reproducibilidad con una persona que no participó del desarrollo. No se agrega funcionalidad ni se toca el agente, los prompts ni la batería: si la prueba de CE-005 destapa un defecto del código, se corrige y se anota, pero no se retoca la evaluación.
+
+**Sin historia propia**: como las Etapas 0 y 4, el cierre verifica todas las historias. Las tareas no llevan etiqueta `[US#]`.
+
+**Tests**: un solo test unitario sin LLM ni base (T124): que las rutas y los comandos que menciona el README existan. La prueba de CE-005 es manual por definición (la hace otra persona).
+
+**Decisiones de diseño de la etapa** (para que no queden al criterio de quien implementa):
+
+- **Una sola fuente por dato**: el README explica *cómo usar*; el informe explica *qué se hizo, por qué y qué resultó*. Las decisiones de diseño no se copian: se resumen y se enlaza a [research.md](research.md) (R1 a R17). Los números de la evaluación se copian de `docs/resultados-evaluacion.md`, no se reescriben distintos.
+- **El README es el que prueba CE-005**: se escribe para quien no conoce el proyecto, con los comandos en el orden en que se ejecutan y el resultado esperado de cada paso. No remite al quickstart para levantar el sistema (el quickstart es material de desarrollo).
+- **Honestidad sobre los límites** (principio IV de la constitución): el informe dice lo que la evaluación **no** prueba. Deben figurar: el modelo del agente (`gemini-3.5-flash-lite`) ignora la temperatura, por eso 3 corridas y tasa por pregunta; cuatro preguntas (B04, B05, B07 y B08) las corrige un LLM distinto del agente; el chequeo `idioma` mide lo que clasificó el router, no el idioma de la respuesta; la batería tiene 26 preguntas y se escribió antes de ajustar los prompts (R17 explica qué se cambió después); las dos fallas de la corrida final (S06 con los acentos rotos y B10 rechazado por el router) son del agente, no se corrigieron y no se repitieron; otro día de cuota u otra versión del modelo puede dar otro resultado.
+- **No se vuelve a correr la evaluación** en esta etapa. El número que se cita es el de `docs/resultados-evaluacion.md` (2026-10-09, 97,4 % de promedio, CE-001 a CE-004 cumplidos). Una corrida nueva solo se justifica si cambia código del agente.
+- **La persona de la prueba CE-005 no recibe ayuda**: solo el repositorio y una clave de Gemini (propia, o una de prueba que se le pasa aparte, nunca dentro del repositorio ni en un chat). Quien la acompaña solo anota el tiempo y los tropiezos.
+- **Nada de secretos en los documentos**: ni contraseñas ni claves ni el contenido de `.env`; los ejemplos usan `.env.example`.
+
+## Síntesis de la etapa: modelo y effort recomendados
+
+| Fase | Tareas | Qué se hace | Modelo | Effort | Por qué |
+|------|--------|-------------|--------|--------|---------|
+| 25. README | T124 a T127 | README completo, test de rutas y comandos, ejecución de los pasos en un clon limpio | Sonnet 5.5 | medium | Redacción con comandos que hay que ejecutar para confirmar que andan; no hay diseño nuevo |
+| 26. Informe técnico | T128 a T132 | `docs/informe-tecnico.md`: arquitectura, decisiones, evaluación y límites | Sonnet 5.5 | medium | Es síntesis de documentos que ya existen; el cuidado está en que los números y los límites coincidan con `research.md` y `resultados-evaluacion.md` |
+| 27. Prueba CE-005 | T133 y T134 | Guion de la prueba, prueba con otra persona y corrección del README | Sonnet 5.5 | low | La prueba la hace una persona; acá solo se prepara, se anotan los tropiezos y se corrige texto |
+| 28. Cierre | T135 y T136 | Revisión cruzada de documentos y verificación final | Sonnet 5.5 | low | Comprobaciones mecánicas; Opus solo si la revisión encuentra una contradicción entre contratos que obligue a decidir |
+
+## Fase 25: README
+
+**Propósito**: que una persona sin contexto levante el sistema, haga una pregunta y entienda qué ve.
+
+### Tests de la fase
+
+- [ ] T124 [P] Crear `tests/unit/test_readme.py` (sin LLM ni base): lee `README.md` y verifica que (a) cada ruta entre comillas invertidas con prefijo `scripts/`, `app/`, `eval/`, `docs/`, `db/` o `data/` exista en el repositorio; (b) cada `python -m <módulo>` corresponda a un archivo existente (`eval.run_eval` → `eval/run_eval.py`); (c) no diga que el estado actual es la Etapa 0 ni "se completa en la Etapa 5"; (d) no contenga el valor de `GEMINI_API_KEY` ni de `AGENTE_RO_PASSWORD` del `.env` real, si existe (se omite esa comprobación si no hay `.env`). Debe fallar con el README actual.
+
+### Implementación de la fase
+
+- [ ] T125 Reescribir `README.md` conservando lo que ya es correcto (requisitos, configuración, base de datos, datos y documentos, reiniciar desde cero, problemas conocidos) y completando: (a) quitar el aviso "Estado: Etapa 0" y describir el sistema terminado en un párrafo (qué responde, de dónde saca la información, que solo lee); (b) sección **Usar el agente** con `streamlit run app/streamlit_app.py` ejecutado desde la raíz del repositorio (para que se lea `.streamlit/config.toml`), el resultado esperado y qué se ve en pantalla (respuesta, etiqueta de fuente, desplegables "Consulta SQL ejecutada" y "Documentos citados"); (c) sección **Probar una pregunta desde la consola** con el comando de `run_question` del quickstart; (d) sección **Observabilidad** (Phoenix con `docker compose --profile observability up -d`, `logs/traza.jsonl`, y el aviso de que `docker compose --profile observability down` baja también la base); (e) sección **Evaluación** con `python -m eval.run_eval` y sus opciones `--corridas`, `--solo` y `--resumen`, que consume cuota (unas 270 llamadas con 3 corridas, unos 20 minutos) y qué significan los códigos de salida 0, 1 y 2; (f) sección **Tests** actualizada (`pytest tests/unit`, `pytest tests/integration` con la base, y que las pruebas con marcador `llm` gastan cuota); (g) sección **Estructura del repositorio** con una línea por carpeta (`src/gym_agent/`, `app/`, `eval/`, `scripts/`, `db/`, `data/pdfs/`, `docs/`, `specs/`, `tests/`); (h) sección **Fecha de referencia**: "hoy" es 2026-09-30 y por qué (RF-015 y RF-016); (i) enlaces al informe técnico y a `docs/resultados-evaluacion.md`. Cada paso lleva su resultado esperado. Sin contraseñas ni claves.
+- [ ] T126 Pasar el test de T124 y corregir lo que marque. Después **ejecutar los pasos del README tal cual están escritos** en un clon limpio (`git clone` a una carpeta temporal, entorno virtual nuevo, `docker compose down -v` antes de levantar la base) hasta obtener la primera respuesta en la app; anotar cada paso que no salió como dice y corregir el README. Requiere T125 y la clave de Gemini.
+- [ ] T127 [P] Actualizar el comienzo de [quickstart.md](quickstart.md) para que remita al README como guía de puesta en marcha y quede como material de desarrollo.
+
+**Punto de control**: el README solo basta para llegar a una respuesta del agente en un clon limpio; el test de T124 pasa.
+
+---
+
+## Fase 26: Informe técnico
+
+**Propósito**: el documento que se entrega y se defiende en el coloquio.
+
+- [ ] T128 Crear `docs/informe-tecnico.md` con las secciones 1 a 3: (1) **Resumen**: qué problema resuelve, qué entrega y el resultado de la evaluación en dos líneas; (2) **Arquitectura**: diagrama del grafo (`router` → `sql` / `rag` / `ambas` / `rechazar` → `sintetizar`) tomado de [contracts/agent-graph.md](contracts/agent-graph.md), componentes (PostgreSQL con pgvector, SQL tool, RAG tool, app Streamlit, trazas JSONL y Phoenix) y cómo se relacionan; (3) **Datos y documentos**: las 7 tablas de `public`, los 3 PDFs sintéticos, el chunking y la ingesta a `rag.chunks`, la fecha de referencia 2026-09-30 y por qué los datos son deterministas (CE-007). Fuente: [data-model.md](data-model.md) y research R6 a R9.
+- [ ] T129 Agregar las secciones 4 y 5: (4) **Seguridad y solo lectura** (RF-008): rol `agente_ro` con `default_transaction_read_only=on` y `statement_timeout=5s`, validador con `sqlglot`, esquema `rag` fuera del alcance de la SQL tool, rechazo de modificaciones en el router, las marcas `<pregunta>`, `<datos_sql>` y `<fragmentos>` que tratan el contenido como datos y no como instrucciones, y que el `detalle` de los errores nunca llega al usuario; (5) **Decisiones de diseño y qué se descartó**: R1 a R5, R10, R11, R13 y R14 de [research.md](research.md), cada una en tres líneas (decisión, motivo, alternativa descartada). No copiar el research entero.
+- [ ] T130 Agregar la sección 6 **Evaluación**: la batería (26 preguntas: 7 SQL, 5 RAG, 4 híbridas, 10 borde), cómo se corrige (chequeos determinísticos, consultas doradas, hechos de `catalog.py`, juez LLM en cuatro preguntas con un modelo distinto del agente), los criterios CE-001 a CE-004, el resultado de la corrida final copiado de [docs/resultados-evaluacion.md](../../docs/resultados-evaluacion.md) (tabla de criterios, tasa por pregunta, mediana 3,7 s y máxima 35,7 s) y el recorrido de la primera corrida (23 de 26) a la final con lo que se corrigió, resumido de research R17 (glosario de la SQL tool, reglas 7 y 8, consulta ejecutada dentro de `<datos_sql>`, regla 6 de la síntesis). Incluir las dos fallas que quedaron (S06 y B10) con su causa y aclarar que no se maquilló nada.
+- [ ] T131 Agregar la sección 7 **Límites y trabajo futuro**: los límites de la decisión de la etapa (temperatura ignorada y por qué 3 corridas, juez LLM, `idioma` del router, 26 preguntas, variabilidad entre corridas y entre versiones del modelo, cuota diaria de la API y su efecto sobre la latencia), lo que está fuera de alcance según [spec.md](spec.md) (nube, memoria entre preguntas, modificación de datos) y mejoras posibles (más preguntas por tipo, un modelo con temperatura respetada, resolver las preguntas que comparan con un valor de un documento como H04, memoria de conversación).
+- [ ] T132 Revisar el informe contra las fuentes: cada cifra (tablas, chunks, preguntas, porcentajes, tiempos, modelos) coincide con `docs/resultados-evaluacion.md`, `research.md` y `src/gym_agent/config.py`; los enlaces relativos resuelven; no hay claves ni contraseñas; está escrito para una persona de la cátedra que no vio el código. Anotar en el informe la fecha y las versiones (`requirements.txt`) con las que se obtuvo el resultado.
+
+**Punto de control**: `docs/informe-tecnico.md` completo, con los números de la corrida final y los límites a la vista.
+
+---
+
+## Fase 27: Prueba de reproducibilidad (CE-005)
+
+**Propósito**: comprobar con otra persona que el README alcanza.
+
+- [ ] T133 Preparar la prueba en `docs/prueba-ce005.md`: un guion de una página con el objetivo, lo que la persona necesita (Docker, Python 3.12 a 3.14, una clave de Gemini), la regla ("solo el README, sin ayuda de quien la acompaña"), una plantilla para anotar la hora de inicio, la hora de la primera respuesta, cada tropiezo (paso, qué pasó, cómo lo resolvió) y la pregunta que hizo, y una lista de verificación de lo que debería ver (respuesta, fuente, SQL o documento citado). Dejar los campos vacíos.
+- [ ] T134 Hacer la prueba con una persona que no participó del desarrollo (coordinarla **antes del 13/10**: si aparece un tropiezo hace falta tiempo para corregir y repetir). Completar la plantilla de T133, corregir el README por cada tropiezo y, si el defecto fue del código y no del texto, corregirlo con su test. Anotar el resultado (tiempo hasta la primera respuesta y cantidad de tropiezos) en el informe. Si no se consigue a nadie a tiempo, hacerla uno mismo en otra máquina o usuario y **decirlo así en el informe**: no se presenta como cumplida con otra persona.
+
+**Punto de control**: CE-005 probado y registrado, con el README ya corregido.
+
+---
+
+## Fase 28: Cierre de la Etapa 5
+
+- [ ] T135 Revisión cruzada: confirmar que README, informe, `docs/resultados-evaluacion.md`, [quickstart.md](quickstart.md) y los contratos no se contradicen en comandos, cifras ni nombres (modelos, opciones del runner, códigos de salida, rutas). Marcar en [plan.md](plan.md) la Etapa 5 como terminada.
+- [ ] T136 Verificación final: `pytest tests/unit tests/integration` (con la base y la clave; ya incluye las pruebas `llm`) en verde; `git status` sin `logs/`, `eval/results/` ni `.env` y con `README.md`, `docs/informe-tecnico.md`, `docs/prueba-ce005.md` y `docs/resultados-evaluacion.md` para versionar; `grep` de que ningún documento contiene la clave de Gemini ni la contraseña de `agente_ro`; `grep` de que nada en `src/gym_agent/` ni en `app/` importa `eval`; y marcar acá las tareas completadas. Con esto termina el trabajo; la entrega es el 16/10/2026.
+
+---
+
+## Dependencias y orden de ejecución (Etapa 5)
+
+### Entre fases
+
+- **Fase 25**: requiere la Etapa 4 cerrada (T123).
+- **Fase 26**: puede avanzar en paralelo con la Fase 25 (solo lee documentos); `docs/resultados-evaluacion.md` ya existe.
+- **Fase 27**: requiere el README de la Fase 25 (T126) y una persona disponible; conviene coordinarla desde el primer día.
+- **Fase 28**: requiere las Fases 25 a 27.
+
+### Dentro de las fases
+
+- Fase 25: T124 antes de T125 (el test falla primero); T126 después de T125; T127 en paralelo con T126.
+- Fase 26: T128 → T129 → T130 → T131 → T132 (un solo archivo, en orden).
+- Fase 27: T133 → T134.
+- Fase 28: T135 → T136.
+
+### Oportunidades de paralelismo
+
+```text
+Después de la Etapa 4:
+  T124 → T125 → T126 ∥ T127
+  T128 → T129 → T130 → T131 → T132      (en paralelo con la Fase 25)
+  T133 (apenas esté T126) → T134
+  T135 → T136
+```
+
+## Estrategia de implementación (Etapa 5)
+
+1. **Coordinar hoy a la persona de CE-005**, aunque la prueba sea después: es lo único que depende de otra persona.
+2. **README primero**: lo usa la prueba y es lo más probable que tenga tropiezos; el informe puede escribirse mientras tanto.
+3. **Ejecutar el README en un clon limpio** (T126) antes de dárselo a otra persona, para que no pierda tiempo con errores evidentes.
+4. **El informe copia números, no los recalcula**: si algo no coincide, manda `docs/resultados-evaluacion.md`.
+5. **No tocar el agente ni la batería**. Si falta tiempo, se recorta en este orden: la sección 5 del informe (un párrafo por decisión), las mejoras de la sección 7 y, como último recurso, la prueba con otra persona se hace en otra máquina aclarándolo (T134). Nunca se recorta la sección de límites ni el README.
+6. **Fecha límite interna**: 15/10 con todo cerrado; el 16/10 es la entrega.
