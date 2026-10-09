@@ -1,0 +1,3 @@
+# Los scripts que se montan en el contenedor de Linux deben tener fin de línea LF aunque el clon
+# se haga en Windows (con autocrlf, un 02_roles.sh con CRLF no se puede ejecutar y no se crea agente_ro).
+*.sh text eol=lf

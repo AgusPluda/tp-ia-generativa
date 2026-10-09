@@ -1,6 +1,6 @@
 # Guía de validación (quickstart)
 
-Recorrido para comprobar de punta a punta que el sistema funciona. Los comandos son los previstos; se confirman en la implementación. Los detalles de datos, contratos y evaluación están en [data-model.md](data-model.md) y [contracts/](contracts/).
+Recorrido de desarrollo para comprobar de punta a punta que el sistema funciona. **La guía de puesta en marcha para quien usa el proyecto es el [README](../../README.md)**; este documento la complementa con los resultados esperados de cada etapa. Los detalles de datos, contratos y evaluación están en [data-model.md](data-model.md) y [contracts/](contracts/).
 
 ## Requisitos previos
 
