@@ -37,7 +37,7 @@ Una pregunta rechazada (modificación, fuera de dominio, falta de contexto) se m
 
 ## Página "Preguntas evaluativas"
 
-Una sola página que lista la batería de [eval-battery.md](eval-battery.md), como en el markdown: un subtítulo por sección con su cantidad ("Solo SQL (7)", "Solo RAG (5)", "Híbridas (4)", "Casos borde (10)") y una tabla con ID, Pregunta y Chequeo principal. Solo muestra: no envía preguntas al agente. La fuente es el markdown; en la Etapa 4, cuando exista `eval/battery.yaml`, un test verifica que ambos tengan las mismas preguntas.
+Una sola página que lista la batería de [eval-battery.md](eval-battery.md), como en el markdown: un subtítulo por sección con su cantidad ("Solo SQL (7)", "Solo RAG (5)", "Híbridas (4)", "Casos borde (10)") y una tabla con ID, Pregunta y Chequeo principal. Solo muestra: no envía preguntas al agente. La fuente es el markdown; un test (`tests/unit/test_eval_battery.py`) verifica que ambos tengan las mismas preguntas.
 
 ## No incluye
 

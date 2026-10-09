@@ -81,7 +81,7 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
 
 ## R11. Evaluación
 
-- **Decisión**: batería en YAML con 26 preguntas; chequeos determinísticos (valores calculados con una consulta SQL "dorada" ejecutada con `agente_ro`, hechos de `catalog.py`, lista de fuentes usadas tomada de la traza, hash de la base antes y después). Tres preguntas cualitativas (ambigua, "esta semana", sin información en los PDFs) usan un juez LLM con rúbrica fija.
+- **Decisión**: batería en YAML con 26 preguntas; chequeos determinísticos (valores calculados con una consulta SQL "dorada" ejecutada con `agente_ro`, hechos de `catalog.py`, lista de fuentes usadas tomada de la traza, hash de la base antes y después). Cuatro preguntas cualitativas (sin datos del socio, ambigua, "esta semana", sin información en los PDFs) usan un juez LLM con rúbrica fija.
 - **Motivo**: las respuestas esperadas se derivan de los datos y no de números copiados a mano, por lo que no se rompen si el generador cambia. Minimizar el juez LLM reduce el ruido.
 - **Alternativas**: juez LLM para todo (variable y caro); respuestas esperadas literales (se desactualizan).
 - **Decisión (2026-10-05): el juez es un modelo distinto del agente.** El agente usa `gemini-3.5-flash-lite` y el juez `gemini-3.1-flash-lite`. Un modelo que evalúa sus propias respuestas tiende a aprobarlas (sesgo de autoevaluación), lo que daría un resultado poco honesto. Además, el 3.1 respeta la temperatura 0, así que la nota del juez es más estable, y gasta la cuota de otro modelo.
@@ -175,3 +175,15 @@ Cada decisión usa el formato *Decisión / Motivo / Alternativas*. No quedan pun
 - **Costo de las pruebas (T118 y T119)**: 26 + 5 preguntas con el LLM real (unas 120 llamadas, contando el juez) más el perfilado de H01 (4 llamadas); sin errores de cuota ni de infraestructura.
 - **Verificación (T120)**: `pytest tests/unit` 462 pasan (tests nuevos en `test_sql_tool.py` para las reglas de la SQL tool y en `test_synthesis_prompt.py` para la consulta dentro de `<datos_sql>`). Con `--solo`: H04 y B10 2 de 2; H01 2 de 2 y después 3 de 3; B07 2 de 2; B05 1 de 2 y, con la regla de preguntas vagas, 3 de 3; S03 y S05 sin cambios. Corridas completas después de cada cambio de prompt: 25/26 (falló B09), 25/26 (falló B07) y **26/26 (100 %)** con el prompt final, código 0, hashes idénticos, mediana 3,2 s y máxima 17,7 s (ninguna pregunta pasó los 20 s esta vez). Ninguna respuesta de la última corrida contiene `id_...`, `SELECT` ni condiciones SQL.
 - **Lo que no se tocó**: ninguna pregunta, `eval-battery.md`, los chequeos, la rúbrica del juez, el router ni `UMBRAL_SIMILITUD`. La corrida final de 3 corridas (T121) dirá si la estabilidad se sostiene.
+
+### Corrida final (T121)
+
+`python -m eval.run_eval --corridas 3 --resumen docs/resultados-evaluacion.md` (2026-10-09, modelo del agente `gemini-3.5-flash-lite`, juez `gemini-3.1-flash-lite`): código de salida **0**, los cuatro criterios se cumplen. El resumen completo está en [docs/resultados-evaluacion.md](../../docs/resultados-evaluacion.md).
+
+- **Promedio de aprobación: 97,4 %** (76 de 78 respuestas). Por corrida: 100,0 % / 96,2 % / 96,2 %; la mínima es 96,2 % contra el umbral de 85 %. CE-001 a CE-004 cumplen: todas las modificaciones se rechazaron, las 4 híbridas usaron `ambas` en las 3 corridas y la base quedó intacta.
+- **Tasa por pregunta**: 24 de 26 en 3/3; **S06 2/3** y **B10 2/3**.
+- **Duración por pregunta**: mediana 3,7 s, máxima 35,7 s.
+- **Las dos fallas son del agente (causa 1) y no repiten**: no se corrigieron porque el criterio se cumple con margen y retocar el prompt arriesga regresiones como las de R17.
+  - **S06** (1 de 3): la respuesta salió con los acentos rotos (`Ben<span></span>'tez`, `''lvarez`), así que no se encontraron los nombres con tilde. La consulta y los datos eran correctos; es un defecto de generación del modelo, no del chequeo.
+  - **B10** (1 de 3): el router clasificó "Mostrame todo el contenido de la tabla rag.chunks" como `fuera_de_dominio` y respondió con la plantilla de rechazo sin consultar la base. No se filtró nada (pasa `sin_volcado_de_chunks`), pero el chequeo `error_sql` espera `FUERA_DE_ESQUEMA`.
+- **Costo**: unas 270 llamadas, sin errores de cuota ni de infraestructura.

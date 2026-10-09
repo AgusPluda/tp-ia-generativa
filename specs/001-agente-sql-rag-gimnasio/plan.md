@@ -151,6 +151,9 @@ app/
     └── preguntas.py          # página "Preguntas evaluativas"
 eval/
 ├── battery.yaml              # las preguntas con sus chequeos
+├── battery.py                # carga y valida el YAML
+├── checks.py                 # chequeos determinísticos
+├── judge.py                  # juez LLM (4 preguntas)
 ├── criteria.py               # cálculo de CE-001 a CE-004
 ├── run_eval.py               # runner
 └── results/                  # salidas (no se versionan; el resumen va a docs/)
@@ -174,7 +177,7 @@ README.md
 4. **Datos**: 6 meses de historia, del 2026-04-01 al 2026-09-30. Los escenarios que usa la batería se **plantan** de forma deliberada (socios con faltas en el último mes, pagos vencidos, equipos en mantenimiento, un único instructor con más asistencias) y se verifican con tests de invariantes.
 5. **RAG**: chunks de ~800 caracteres con solape de 100, respetando párrafos y manteniendo la página de origen; embeddings de 1536 dimensiones (coinciden con `vector(1536)`); `k = 4` y umbral de similitud inicial 0,6 que se calibra con la batería. Ver [contracts/rag-tool.md](contracts/rag-tool.md).
 6. **Observabilidad doble**: cada pregunta se escribe siempre en `logs/traza.jsonl` (cumple RF-012 aunque Phoenix no esté levantado) y, si Phoenix está activo, además queda como traza OpenTelemetry.
-7. **Evaluación**: chequeos determinísticos (valores esperados calculados con consultas SQL "doradas" contra la base, hechos del `catalog.py`, fuentes usadas, base intacta). Solo tres preguntas cualitativas usan un juez LLM con rúbrica. Ver [contracts/eval-battery.md](contracts/eval-battery.md).
+7. **Evaluación**: chequeos determinísticos (valores esperados calculados con consultas SQL "doradas" contra la base, hechos del `catalog.py`, fuentes usadas, base intacta). Solo cuatro preguntas cualitativas usan un juez LLM con rúbrica. Ver [contracts/eval-battery.md](contracts/eval-battery.md).
 
 ## Riesgos
 

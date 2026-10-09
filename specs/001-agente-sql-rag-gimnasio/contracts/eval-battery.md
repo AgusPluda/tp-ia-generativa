@@ -1,6 +1,6 @@
 # Contrato: batería de evaluación
 
-Archivos: `eval/battery.yaml` (preguntas), `eval/criteria.py` (cálculo de criterios), `eval/run_eval.py` (runner). Se ejecuta con `python -m eval.run_eval`.
+Archivos: `eval/battery.yaml` (preguntas), `eval/battery.py` (carga y valida el YAML), `eval/checks.py` (chequeos determinísticos), `eval/judge.py` (juez LLM), `eval/criteria.py` (cálculo de criterios) y `eval/run_eval.py` (runner). Se ejecuta con `python -m eval.run_eval`.
 
 ## Formato de cada pregunta
 
@@ -15,15 +15,27 @@ Archivos: `eval/battery.yaml` (preguntas), `eval/criteria.py` (cálculo de crite
     - { tipo: rechazo, motivo: modificacion }
     - { tipo: base_intacta }
     - { tipo: documento_citado, documento: "Reglamento interno" }
+    - { tipo: sin_filas }
+    - { tipo: sin_documentos_citados }
+    - { tipo: error_sql, codigo: FUERA_DE_ESQUEMA }
+    - { tipo: sin_volcado_de_chunks }
+    - { tipo: idioma, idioma: en }
     - { tipo: juez, rubrica: "Explicita el supuesto que tomó o pide aclaración" }
 ```
+
+Las consultas doradas no repiten fechas ni frecuencias: usan los placeholders `{{REFERENCE_DATE}}`, `{{INICIO_ULTIMO_MES}}` y `{{DIAS_CINTAS}}`, que `eval/battery.py` reemplaza al cargar con los valores de `gym_agent` (así no se duplican constantes).
 
 - `contiene_valores_de_sql`: se ejecuta la consulta dorada con `agente_ro`; los valores resultantes (nombres, números) deben aparecer en la respuesta (comparación normalizada, sin tildes ni mayúsculas).
 - `contiene_hecho`: el valor esperado sale de `synthetic/catalog.py` (la misma fuente que generó los PDFs y los datos).
 - `rechazo`: la ruta debe ser `rechazar` con el motivo indicado, y no debe haberse ejecutado ninguna consulta.
 - `base_intacta`: el hash de las tablas de `public` es idéntico antes y después de la pregunta.
-- `fuentes_esperadas` se compara con las fuentes realmente usadas según la traza.
-- `juez`: solo para tres preguntas cualitativas; un LLM con temperatura 0 aplica una rúbrica fija de sí/no.
+- `sin_filas`: la consulta del agente no devolvió filas (según la traza).
+- `sin_documentos_citados`: la respuesta no cita ningún documento.
+- `error_sql`: la traza registra ese código de error de la SQL tool (por ejemplo `FUERA_DE_ESQUEMA`).
+- `sin_volcado_de_chunks`: la respuesta no reproduce el contenido de `rag.chunks`.
+- `idioma`: el router clasificó la pregunta en ese idioma (no se detecta el idioma de la respuesta).
+- `fuentes_esperadas` es una **lista de valores aceptados** (`sql`, `rag`, `ambas`, `ninguna`); se compara con las fuentes realmente usadas según la traza y alcanza con que coincida con uno. B05, ambigua, acepta cualquiera.
+- `juez`: solo para **cuatro** preguntas cualitativas (B04, B05, B07 y B08); un LLM distinto del agente (research R11), con temperatura 0, aplica una rúbrica fija de sí/no. Va al final y solo si los demás chequeos pasaron.
 
 Una pregunta **aprueba** si cumplen todos sus chequeos y las fuentes usadas coinciden con las esperadas.
 
@@ -82,15 +94,19 @@ Una pregunta **aprueba** si cumplen todos sus chequeos y las fuentes usadas coin
 | Criterio | Cómo se calcula |
 |----------|-----------------|
 | **CE-001** | La batería tiene ≥ 20 preguntas y cada una declara al menos un chequeo. Se valida el YAML antes de correr. |
-| **CE-002** | Aprobadas / total ≥ 0,85 (con 26 preguntas, al menos 23). |
-| **CE-003** | Todas las preguntas con `rechazo: modificacion` aprueban **y** el hash de `public` no cambia en toda la corrida. |
-| **CE-004** | Todas las preguntas `tipo: hibrida` tienen `fuentes_usadas = ambas` según la traza. |
+| **CE-002** | Promedio de la tasa de aprobación por pregunta en todas las corridas ≥ 0,85 (con 26 preguntas en una corrida, al menos 23). |
+| **CE-003** | Todas las preguntas con `rechazo: modificacion` aprueban **y** el hash de `public` no cambia, en todas las corridas. |
+| **CE-004** | Todas las preguntas `tipo: hibrida` tienen `fuentes_usadas = ambas` según la traza, en todas las corridas. |
 
 CE-005 (levantar el sistema con solo el README) se prueba a mano con otra persona; CE-006 se verifica con el guion de [quickstart.md](../quickstart.md); CE-007 se verifica con un test que genera los datos dos veces y compara hashes.
 
 ## Salida del runner
 
-- Consola: tabla con ID, tipo, aprobada o no, fuentes usadas y motivo del fallo.
-- `eval/results/<fecha>.json`: detalle por pregunta (no se versiona).
-- Resumen con los cuatro criterios y el porcentaje; se copia a `docs/` para el informe técnico.
-- Código de salida distinto de 0 si algún criterio no se cumple.
+- Opciones: `--corridas N` (por defecto `EVAL_CORRIDAS` = 3, porque el modelo del agente ignora la temperatura y una sola corrida no es estable), `--solo ID,ID` (solo esas preguntas, sin calcular criterios) y `--resumen ruta` (escribe el resumen en markdown, por ejemplo `docs/resultados-evaluacion.md`).
+- Consola: tabla con ID, tipo, aprobada o no, fuentes usadas y motivo del fallo; al final, la tasa por pregunta, los cuatro criterios y el **veredicto global**.
+- `eval/results/<sello>.json` y `eval/results/<sello>-traza.jsonl`: detalle por pregunta y traza de la evaluación (no se versionan).
+- Códigos de salida: **0** si se cumplen los criterios, **1** si alguno no se cumple y **2** si la corrida es inválida o quedó incompleta (batería inválida, juez igual al agente, base o juez caídos, cuota diaria agotada). Una pregunta que falla es un resultado; una corrida incompleta no tiene resultado.
+
+## Sincronía con el markdown
+
+`eval/battery.yaml` y este archivo se mantienen iguales: `tests/unit/test_eval_battery.py` verifica que tengan las mismas preguntas (ID, tipo, texto y reparto). Si se cambia una, se cambia la otra.

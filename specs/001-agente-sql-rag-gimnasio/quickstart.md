@@ -94,8 +94,12 @@ Abrir http://localhost:6006 y hacer una pregunta: debe aparecer la traza con los
 ## 7. Evaluación
 
 ```bash
-python -m eval.run_eval
+python -m eval.run_eval                                  # 3 corridas completas
+python -m eval.run_eval --solo S01,B01                   # solo esas preguntas, sin criterios
+python -m eval.run_eval --resumen docs/resultados-evaluacion.md
 ```
+
+Opciones: `--corridas N`, `--solo ID,ID` y `--resumen ruta`. La evaluación llama al LLM: consume cuota de AI Studio (unas 270 llamadas con 3 corridas) y tarda unos 20 minutos.
 
 **Resultado esperado**: tabla por pregunta y resumen de criterios: CE-001 (≥ 20 preguntas), CE-002 (≥ 85 % aprobadas), CE-003 (todos los intentos de modificar datos rechazados y base intacta) y CE-004 (híbridas con ambas fuentes). Código de salida 0 si todos se cumplen.
 
