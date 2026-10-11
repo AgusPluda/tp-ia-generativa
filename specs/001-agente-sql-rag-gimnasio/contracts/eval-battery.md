@@ -102,7 +102,7 @@ CE-005 (levantar el sistema con solo el README) se prueba a mano con otra person
 
 ## Salida del runner
 
-- Opciones: `--corridas N` (por defecto `EVAL_CORRIDAS` = 3, porque el modelo del agente ignora la temperatura y una sola corrida no es estable), `--solo ID,ID` (solo esas preguntas, sin calcular criterios) y `--resumen ruta` (escribe el resumen en markdown, por ejemplo `docs/resultados-evaluacion.md`).
+- Opciones: `--corridas N` (por defecto `EVAL_CORRIDAS` = 3, porque el modelo del agente ignora la temperatura y una sola corrida no es estable), `--solo ID,ID` (solo esas preguntas, sin calcular criterios) y `--resumen ruta` (escribe el resumen en markdown, por ejemplo `eval/results/resumen.md`; si la ruta existe, se pisa, así que no apuntarla a `docs/resultados-evaluacion.md`, que es el resultado de la entrega).
 - Consola: tabla con ID, tipo, aprobada o no, fuentes usadas y motivo del fallo; al final, la tasa por pregunta, los cuatro criterios y el **veredicto global**.
 - `eval/results/<sello>.json` y `eval/results/<sello>-traza.jsonl`: detalle por pregunta y traza de la evaluación (no se versionan).
 - Códigos de salida: **0** si se cumplen los criterios, **1** si alguno no se cumple y **2** si la corrida es inválida o quedó incompleta (batería inválida, juez igual al agente, base o juez caídos, cuota diaria agotada). Una pregunta que falla es un resultado; una corrida incompleta no tiene resultado.

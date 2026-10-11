@@ -266,7 +266,7 @@ Según la especificación: el despliegue en la nube (el sistema corre de forma l
 - **Librerías principales** (de `requirements.txt`): `langgraph` 1.2.12, `langchain-google-genai` 4.4.0, `google-genai` 2.28.0, `streamlit` 1.65.0, `psycopg` 3.3.6, `sqlglot` 30.21.0, `pypdf` 6.19.0, `reportlab` 5.0.1, `pydantic` 2.13.5, `arize-phoenix-otel` 0.17.2. En desarrollo: `pytest` 9.1.1 (`requirements-dev.txt`).
 - **Imágenes de Docker**: `pgvector/pgvector:pg16` y `arizephoenix/phoenix:version-20.19.0`.
 - **Modelos**: `gemini-3.5-flash-lite` (agente), `gemini-3.1-flash-lite` (juez y respaldo del chat) y `gemini-embedding-001`.
-- **Tests**: las 469 pruebas unitarias pasan; las de integración requieren la base y la clave (ver el README).
+- **Tests**: las 470 pruebas unitarias pasan; las de integración requieren la base y la clave (ver el README).
 
 ## Anexo: prueba de reproducibilidad (CE-005)
 

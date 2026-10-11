@@ -96,7 +96,7 @@ Abrir http://localhost:6006 y hacer una pregunta: debe aparecer la traza con los
 ```bash
 python -m eval.run_eval                                  # 3 corridas completas
 python -m eval.run_eval --solo S01,B01                   # solo esas preguntas, sin criterios
-python -m eval.run_eval --resumen docs/resultados-evaluacion.md
+python -m eval.run_eval --resumen eval/results/resumen.md
 ```
 
 Opciones: `--corridas N`, `--solo ID,ID` y `--resumen ruta`. La evaluación llama al LLM: consume cuota de AI Studio (unas 270 llamadas con 3 corridas) y tarda unos 20 minutos.
@@ -105,4 +105,4 @@ Opciones: `--corridas N`, `--solo ID,ID` y `--resumen ruta`. La evaluación llam
 
 ## 8. Prueba de reproducibilidad (CE-005)
 
-Una persona que no participó del desarrollo parte de un clon limpio del repositorio y, siguiendo **solo** el README, llega a una primera respuesta del agente. Anotar el tiempo y los tropiezos para corregir el README.
+Una persona que no participó del desarrollo parte de un clon limpio del repositorio y, siguiendo **solo** el README, llega a una primera respuesta del agente. Anotar el tiempo y los tropiezos para corregir el README. La guía está en `docs/prueba-ce005.md`; el resultado de la prueba hecha, en el anexo de `docs/informe-tecnico.md`.

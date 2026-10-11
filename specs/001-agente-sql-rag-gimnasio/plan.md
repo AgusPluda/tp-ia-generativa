@@ -17,7 +17,7 @@ El trabajo se ordena en **etapas**; la primera es el *setup* de datos, porque to
 | 2. Agente | Grafo LangGraph (router → tools → síntesis), trazas JSONL y Phoenix | 10/10 |
 | 3. Interfaz | App Streamlit | 11/10 |
 | 4. Evaluación | Batería de 26 preguntas + runner de CE-001 a CE-004; ajuste de prompts | 13/10 |
-| 5. Cierre | README desde cero, informe técnico, prueba CE-005 con otra persona | 15/10 |
+| 5. Cierre (terminada el 2026-10-11) | README desde cero, informe técnico, prueba CE-005 (la hizo el autor, no una persona ajena: ver el anexo del informe) | 15/10 |
 
 La entrega es el 16/10/2026; las fechas dejan un día de margen.
 

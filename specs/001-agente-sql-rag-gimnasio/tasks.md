@@ -958,8 +958,8 @@ Después de la Etapa 3:
 
 ## Fase 28: Cierre de la Etapa 5
 
-- [ ] T135 Revisión cruzada: confirmar que README, informe, `docs/resultados-evaluacion.md`, [quickstart.md](quickstart.md) y los contratos no se contradicen en comandos, cifras ni nombres (modelos, opciones del runner, códigos de salida, rutas). Marcar en [plan.md](plan.md) la Etapa 5 como terminada.
-- [ ] T136 Verificación final: `pytest tests/unit tests/integration` (con la base y la clave; ya incluye las pruebas `llm`) en verde; `git status` sin `logs/`, `eval/results/` ni `.env` y con `README.md`, `docs/informe-tecnico.md`, `docs/prueba-ce005.md` y `docs/resultados-evaluacion.md` para versionar; `grep` de que ningún documento contiene la clave de Gemini ni la contraseña de `agente_ro`; `grep` de que nada en `src/gym_agent/` ni en `app/` importa `eval`; y marcar acá las tareas completadas. Con esto termina el trabajo; la entrega es el 16/10/2026.
+- [X] T135 Revisión cruzada: confirmar que README, informe, `docs/resultados-evaluacion.md`, [quickstart.md](quickstart.md) y los contratos no se contradicen en comandos, cifras ni nombres (modelos, opciones del runner, códigos de salida, rutas). Marcar en [plan.md](plan.md) la Etapa 5 como terminada.
+- [X] T136 Verificación final: `pytest tests/unit tests/integration` (con la base y la clave; ya incluye las pruebas `llm`) en verde; `git status` sin `logs/`, `eval/results/` ni `.env` y con `README.md`, `docs/informe-tecnico.md`, `docs/prueba-ce005.md` y `docs/resultados-evaluacion.md` para versionar; `grep` de que ningún documento contiene la clave de Gemini ni la contraseña de `agente_ro`; `grep` de que nada en `src/gym_agent/` ni en `app/` importa `eval`; y marcar acá las tareas completadas. Con esto termina el trabajo; la entrega es el 16/10/2026.
 
 ---
 
