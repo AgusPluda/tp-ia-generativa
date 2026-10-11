@@ -270,4 +270,15 @@ Según la especificación: el despliegue en la nube (el sistema corre de forma l
 
 ## Anexo: prueba de reproducibilidad (CE-005)
 
-**Pendiente.** Todavía no se hizo la prueba en la que una persona que no participó del desarrollo parte de un clon limpio y llega a una primera respuesta siguiendo solo el README. Cuando se haga se registran acá el tiempo hasta la primera respuesta y la cantidad de tropiezos, y se aclara si la hizo otra persona o se hizo en otra máquina (la guía está en `docs/prueba-ce005.md`).
+**Quién la hizo:** el autor del proyecto (Windows 10, Python 3.14), en un clon nuevo del repositorio y siguiendo solo el README. **No la hizo una persona ajena al desarrollo**: la persona que iba a hacerla se trabó en el mismo punto que se describe abajo y no la terminó. Por eso CE-005 se registra como hecha por el autor, no como cumplida con una tercera persona. El registro completo está en `docs/prueba-ce005_completo.md` (la guía, en `docs/prueba-ce005.md`).
+
+| Medida | Resultado |
+|--------|-----------|
+| Fecha | 2026-10-11 |
+| Tiempo hasta la primera respuesta | 14 min (18:12 a 18:26) |
+| Pregunta | «¿Cuántos socios tiene cada plan?», en la app, con SQL y fuente visibles |
+| Tropiezos | 1 |
+
+**El tropiezo.** Al correr `python scripts/generate_data.py` la conexión a la base falló. La causa no fue el README sino el entorno: ya existía un contenedor `gym_db` (con su volumen) creado antes, con otra contraseña de `agente_ro` y del superusuario. Postgres solo toma las credenciales al crear el volumen, así que el clon nuevo, con un `.env` distinto, no podía entrar. Se resolvió con `docker compose down -v` y `docker compose up -d --wait`. Le pasa a quien ya tenga una copia del proyecto levantada; una persona sin contenedor previo no lo encuentra. Aun así se agregó una entrada en «Problemas conocidos» del README.
+
+Una prueba anterior en un clon limpio (T126, también del autor) encontró otro defecto, este sí del repositorio: en Windows con `core.autocrlf=true`, `db/init/02_roles.sh` quedaba con fin de línea CRLF y no se creaba `agente_ro`. Se corrigió con `.gitattributes` y un test.

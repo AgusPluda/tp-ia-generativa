@@ -185,6 +185,7 @@ y repetir el paso 3. **Esto borra todos los datos de la base.**
 ## Problemas conocidos
 
 - **`server closed the connection unexpectedly` justo después de `docker compose up`**: la primera vez que se crea el volumen, Postgres ejecuta `db/init/` en un servidor temporal y se reinicia. El healthcheck usa TCP (`127.0.0.1`) para que `--wait` espere al servidor definitivo; si igual aparece el error, esperar unos segundos y repetir el comando.
+- **Error de conexión o de contraseña al generar los datos, y ya tenías este proyecto levantado antes**: el contenedor `gym_db` y su volumen conservan las contraseñas con las que se crearon y no toman las del `.env` nuevo. Bajarlo con `docker compose down -v`, volver a levantarlo con `docker compose up -d --wait` y repetir el paso 3 (esto borra los datos de esa base).
 - **Acentos como `�` en la consola de Windows**: es solo la codificación de la terminal (`chcp 65001` o `$env:PYTHONUTF8=1`); los datos y PDFs están bien.
 - **"En este momento no puedo responder"**: la API de Gemini no respondió (cuota o red). Esperar unos minutos y repetir; el plan gratuito tiene un tope diario de pedidos.
 
