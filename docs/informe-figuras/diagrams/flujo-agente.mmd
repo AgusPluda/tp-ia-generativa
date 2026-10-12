@@ -1,0 +1,12 @@
+flowchart TD
+    P([Pregunta del usuario]) --> R{router}
+    R -->|sql| S[sql]
+    R -->|rag| G[rag]
+    R -->|ambas| S2[sql]
+    R -->|rechazar| X[rechazar]
+    S --> Z[sintetizar]
+    G --> Z
+    S2 --> G2[rag]
+    G2 --> Z
+    Z --> F([Respuesta con fuente])
+    X --> F
