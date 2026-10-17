@@ -194,3 +194,7 @@ y repetir el paso 3. **Esto borra todos los datos de la base.**
 - [Informe técnico](docs/informe-tecnico.md): arquitectura, decisiones, evaluación y límites.
 - [Resultados de la evaluación](docs/resultados-evaluacion.md): la última corrida completa.
 - [Especificación y contratos](specs/001-agente-sql-rag-gimnasio/): requisitos, plan y decisiones.
+
+## Autores
+- Francisco Fornari
+- Agustin Pluda
