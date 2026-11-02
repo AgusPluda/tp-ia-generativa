@@ -44,3 +44,7 @@ Thumbs.db
 
 # Capturas y snapshots del MCP de Playwright
 .playwright-mcp/
+
+# Archify y presentacion
+docs/archify-diagrams
+docs/presentacion/presentacion.html

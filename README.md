@@ -9,6 +9,87 @@ Un agente de LangGraph decide, para cada pregunta, si hay que consultar la base,
 
 Todos los datos y los PDFs son sintéticos y se generan con los scripts del repositorio. El resultado de la evaluación y las decisiones de diseño están en el [informe técnico](docs/informe-tecnico.md) y en los [resultados de la evaluación](docs/resultados-evaluacion.md).
 
+## Contenido
+
+- [Arquitectura y diseño](#arquitectura-y-diseño)
+- [App](#app)
+- [Requisitos](#requisitos)
+- [Puesta en marcha](#puesta-en-marcha)
+- [Usar el agente](#usar-el-agente)
+- [Observabilidad](#observabilidad)
+- [Evaluación](#evaluación)
+- [Tests](#tests)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [Fecha de referencia](#fecha-de-referencia)
+- [Reiniciar desde cero](#reiniciar-desde-cero)
+- [Problemas conocidos](#problemas-conocidos)
+- [Más información](#más-información)
+- [Autores](#autores)
+
+## Arquitectura y diseño
+
+### Arquitectura general
+
+Los componentes del sistema: la interfaz de Streamlit, el agente de LangGraph con sus herramientas SQL y RAG, la base PostgreSQL con pgvector, la API de Gemini y la observabilidad (traza local y Phoenix opcional).
+
+<img src="docs/presentacion/diagrams/d1-arquitectura.svg" alt="Arquitectura general del sistema" width="100%">
+
+### Grafo del agente
+
+El recorrido de cada pregunta por los nodos del grafo: el router decide si consultar la base, los documentos, las dos cosas o rechazar la pregunta, y luego se sintetiza la respuesta.
+
+<img src="docs/presentacion/diagrams/d4-grafo-agente.svg" alt="Grafo del agente en LangGraph" width="100%">
+
+### Más diagramas
+
+<details>
+<summary><b>Modelo de datos</b>: las 7 tablas del esquema <code>public</code> y sus relaciones</summary>
+
+<br>
+<img src="docs/presentacion/diagrams/d2-modelo-datos.svg" alt="Modelo de datos" width="100%">
+
+</details>
+
+<details>
+<summary><b>Datos e ingesta</b>: generación de datos sintéticos y PDFs, y carga de los fragmentos con embeddings en pgvector</summary>
+
+<br>
+<img src="docs/presentacion/diagrams/d3-datos-ingesta.svg" alt="Generación de datos e ingesta de PDFs" width="100%">
+
+</details>
+
+<details>
+<summary><b>Seguridad por capas</b>: cómo se garantiza que el agente solo lea</summary>
+
+<br>
+<img src="docs/presentacion/diagrams/d5-seguridad-capas.svg" alt="Seguridad por capas" width="100%">
+
+</details>
+
+<details>
+<summary><b>Evaluación</b>: cómo se corre la batería de preguntas y se calculan los criterios</summary>
+
+<br>
+<img src="docs/presentacion/diagrams/d6-evaluacion.svg" alt="Proceso de evaluación" width="100%">
+
+</details>
+
+## App
+
+**Chat:** la página principal, con los ejemplos de preguntas y la barra lateral.
+
+<img src="docs/images/chat.png" alt="Página de chat de la aplicación" width="100%">
+
+**Respuesta con fuente "Ambas":** la respuesta combina la base y los documentos, y muestra la consulta SQL ejecutada y los documentos citados.
+
+<p align="center">
+  <img src="docs/images/chat_ambas_ejemplo.png" alt="Respuesta que combina base de datos y documentos" width="60%">
+</p>
+
+**Traza en Phoenix:** la misma pregunta vista en Phoenix, con el recorrido por los nodos del grafo y las llamadas al modelo.
+
+<img src="docs/images/phoenix_ambas_ejemplo.png" alt="Traza de una pregunta en Phoenix" width="100%">
+
 ## Requisitos
 
 - Docker con Compose.
